@@ -1,3 +1,4 @@
 __pycache__/
 UI_components/__pycache__/
 venv/
+assistanceJSONs/partialOptions.json
