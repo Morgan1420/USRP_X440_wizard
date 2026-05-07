@@ -1,2 +1,0 @@
-def capture():
-    print("capture")
