@@ -1,7 +1,38 @@
 import json
 import math
 
-def areInputsValid(fc, bw, time, num_chan):
+# Helper functions
+def readJSON(json_path):
+    try:
+        with open(json_path, 'r') as file:
+            data = json.load(file)
+        return data
+    except Exception as e:
+        print(f"Error: loading JSON failed: {e}")
+        return None
+
+def storeJSON(data, json_path):
+    try:
+        with open(json_path, 'w') as file:
+            json.dump(data, file, indent=4, sort_keys=True)
+        print(f"Successfully saved data to {json_path}")
+    except Exception as e:
+        print(f"Error: saving JSON failed: {e}")
+
+# Input functions
+def areInputsValid(f_min, f_max, fc, bw, time, num_chan):
+    # F_min
+    if f_min is None or f_min <= 0:
+        return False, "Error: Valor per la freqüència mínima (F_min) invàlid, aquest ha de ser un nombre positiu."
+    if f_min > 4e9:
+        return False, "Error: Valor per la freqüència mínima (F_min) massa alt. El màxim son 4GHz."
+    
+    # F_max
+    if f_max is None or f_max <= 0:
+        return False, "Error: Valor per la freqüència màxima (F_max) invàlid, aquest ha de ser un nombre positiu."
+    if f_max > 4e9:
+        return False, "Error: Valor per la freqüència màxima (F_max) massa alt. El màxim son 4GHz."
+    
     # Fc
     if fc is None or fc <= 0:
         return False, "Error: Valor per la freqüència central (Fc) invàlid, aquest ha de ser un nombre positiu."
@@ -27,25 +58,24 @@ def areInputsValid(fc, bw, time, num_chan):
     # Else: if all is good
     return True, "Tots els paràmetres són vàlids."
 
-def readJSON(json_path):
-    try:
-        with open(json_path, 'r') as file:
-            data = json.load(file)
-        return data
-    except Exception as e:
-        print(f"Error: loading JSON failed: {e}")
-        return None
-
-def storeJSON(data, json_path):
-    try:
-        with open(json_path, 'w') as file:
-            json.dump(data, file, indent=4, sort_keys=True)
-        print(f"Successfully saved data to {json_path}")
-    except Exception as e:
-        print(f"Error: saving JSON failed: {e}")
-
-
-
+def processInputs(f_min, f_max, time, num_chan):    
+    
+    # Extract bw i fc
+    bw = f_max - f_min
+    fc = f_min + bw/2
+    
+    # Store inputs if they are valid
+    if(areInputsValid(f_min=f_min, f_max=f_max, fc=fc, bw=bw, time=time, num_chan=num_chan)):
+        # Create an empty dictionary of inputs
+        userInputs = {"f_min": f_min, "f_max": f_max, "fc": fc, "bw": bw, "time": time, "num_chan": num_chan }
+        return True, userInputs
+    
+    
+    return False, "Error: Hi ha un error amb els paràmetres d'entrada. Revisa els valors i torna-ho a intentar."
+    
+    
+    
+# Generate Options Functions
 def generatePartialOptions(fc, bw, mcr_converter_rates_table_path, partial_options_path):
     # Create the array for the partialOptions
     partial_options = []
@@ -54,29 +84,35 @@ def generatePartialOptions(fc, bw, mcr_converter_rates_table_path, partial_optio
     f_min_target = fc - (bw / 2)
     f_max_target = fc + (bw / 2)
     
-    # Read converter_rates table (.json)
-    
+    # Read mcr_converter_rates table JSON file
     mcr_converter_rates_table = readJSON(mcr_converter_rates_table_path)
     if mcr_converter_rates_table is None:
-        return []
+        print("Error: No s'ha pogut carregar la taula de MCR i FCR des del fitxer JSON.")
+        return False
 
+    # Iterate through every item (MCR) in the mcr_converter_rates table
     for entry in mcr_converter_rates_table:
+        # Extract the MCR (Master Clock Rate) in Hz
         mcr_hz = entry["mcr_mhz"] * 1e6
         
-        # Usable BW is usually 80% of the Nyquist bandwidth (0.8 * mcr/2)
+        # Extract the maximum BW allowed by the MCR
         usable_bw_per_chan = 0.8 * mcr_hz   
         
         # Iterate through all the possible converter rate frequencies
         for fcr_ghz in entry["rfdc_converter_rates_ghz"]:
+            # Extract the FCR (Frequency Conversion Rate) in Hz
             fcr = fcr_ghz * 1e9
+            
+            # Calculate the width of the Nyquist zones
             nyquist_bw = fcr / 2
-            # 10% guard band at each edge of the Nyquist zone
+            
+            # Set the Nyquist zone margins to 80% the Nyquist zone (10% on each side)
             margin = 0.1 * nyquist_bw
             
-            current_f_bottom = f_min_target
-            
-            # Iterate through zones (1st, 2nd, 3rd...)
-            for zone_idx in range(1, 9): # X440 covers up to ~4GHz
+            # Iterate through zones (1st up to the 8th)
+            current_f_bottom = f_min_target # Helper variable to keep track of the frequencies
+            for zone_idx in range(1, 9): 
+                # Get the min and max frequencies of the current Nyquist zone
                 zone_min = (zone_idx - 1) * nyquist_bw
                 zone_max = zone_idx * nyquist_bw
                 
@@ -88,6 +124,7 @@ def generatePartialOptions(fc, bw, mcr_converter_rates_table_path, partial_optio
                 overlap_min = max(current_f_bottom, safe_min)
                 overlap_max = min(f_max_target, safe_max)
                 
+                # If there is an overlap, we create a partial option for this zone
                 if overlap_max > overlap_min:
                     interest_bw = overlap_max - overlap_min
                     chans_needed = math.ceil(interest_bw / usable_bw_per_chan)
@@ -110,15 +147,17 @@ def generatePartialOptions(fc, bw, mcr_converter_rates_table_path, partial_optio
     # Store the partial options in a json file
     storeJSON(partial_options, partial_options_path)
     
-
+    return True
+    
 def generateCompleteOptions(fc, bw, partial_options_path):
     complete_options = []
     
     # Read the partial options from the json file
     partial_options = readJSON(partial_options_path)
     if partial_options is None:
-        return []
-    
+        print("Error: No s'ha pogut carregar les opcions parcials des del fitxer JSON.")
+        return False
+
     # Determine the min and max frequencies of the interest BW
     f_min_target = fc - (bw / 2)
     f_max_target = fc + (bw / 2)
@@ -216,19 +255,19 @@ def generateCompleteOptions(fc, bw, partial_options_path):
         
          
     storeJSON(complete_options, './assistanceJSONs/completeOptions.json')
-            
+    
+    return True
 
-
+# Filter and sort Options Functions
 def filter_complete_options(complete_options):
     print("Filtering complete options to find the best one...")
-    
-    
+        
 def sort_complete_options(complete_options):
     print("Sorting complete options by number of channels needed...")
 
 # --- Example usage with your capture options ---
 fcd = 2.1e9  # 2.1 GHz
 bw = 800e6  # 800 MHz
-#generatePartialOptions(fcd, bw, './assistanceJSONs/mcr_converter_rates_table.json', './assistanceJSONs/partialOptions.json')
-generateCompleteOptions(fcd, bw, './assistanceJSONs/partialOptions.json')
+generatePartialOptions(fcd, bw, './assistanceJSONs/mcr_converter_rates_table.json', './assistanceJSONs/partialOptions.json')
+#generateCompleteOptions(fcd, bw, './assistanceJSONs/partialOptions.json')
 # -------------------------------------------------
