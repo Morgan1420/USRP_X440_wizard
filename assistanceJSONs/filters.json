@@ -1,5 +1,5 @@
 {
-  "min_channels": null,
+  "min_channels": 4,
   "max_channels": null,
-  "sorting": "min overlap"
+  "sorting": "min chan"
 }

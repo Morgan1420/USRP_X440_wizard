@@ -70,7 +70,6 @@ def processInputs(f_min, f_max, time):
     return False, "Error: Hi ha un error amb els paràmetres d'entrada. Revisa els valors i torna-ho a intentar."
     
     
-    
 # Generate Options Functions
 def generatePartialOptions(f_min, f_max, mcr_converter_rates_table_path, partial_options_path):
     # Create the array for the partialOptions
@@ -245,17 +244,3 @@ def generateCompleteOptions(f_min, f_max, partial_options_path):
     storeJSON(complete_options, './assistanceJSONs/completeOptions.json')
     
     return True
-
-# Filter and sort Options Functions
-def filter_complete_options(complete_options):
-    print("Filtering complete options to find the best one...")
-        
-def sort_complete_options(complete_options):
-    print("Sorting complete options by number of channels needed...")
-
-# --- Example usage with your capture options ---
-fcd = 2.1e9  # 2.1 GHz
-bw = 800e6  # 800 MHz
-generatePartialOptions(fcd, bw, './assistanceJSONs/mcr_converter_rates_table.json', './assistanceJSONs/partialOptions.json')
-#generateCompleteOptions(fcd, bw, './assistanceJSONs/partialOptions.json')
-# -------------------------------------------------

@@ -3,7 +3,7 @@ import json
 
 
 class OptionsScrollArea:
-    def __init__(self, x, y, w, h, font, json_path='./assistanceJSONs/completeOptions.json'):
+    def __init__(self, x, y, w, h, font, json_path='./assistanceJSONs/filteredOptions.json'):
         self.rect = pygame.Rect(x, y, w, h)
         self.font = font
         self.json_path = json_path

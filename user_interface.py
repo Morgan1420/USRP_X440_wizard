@@ -1,6 +1,7 @@
 import pygame
 import json
-from generate_options import generateCompleteOptions, generatePartialOptions, processInputs
+from processing_scripts.generate_options import generateCompleteOptions, generatePartialOptions, processInputs
+from processing_scripts import filter_options as filter_mod
 
 
 # Pygame things
@@ -104,14 +105,19 @@ def run_ui(callback):
                     # Check if values are valid
                     are_inputs_valid, userInputs = processInputs(f_min=fmin_val, f_max=fmax_val, time=time_val)
                     if are_inputs_valid:
+                        # Generate options
                         print("Generating options...")
                         p_ok = generatePartialOptions(userInputs["f_min"], userInputs["f_max"], './assistanceJSONs/mcr_converter_rates_table.json', './assistanceJSONs/partialOptions.json')
                         if p_ok:
                             c_ok = generateCompleteOptions(userInputs["f_min"], userInputs["f_max"], './assistanceJSONs/partialOptions.json')
                             if c_ok:
-                                options_button_text = "S'han generat les opcions correctament."
-                                # refresh displayed options
-                                options_area.refresh()
+                                f_ok = filter_mod.filter_and_sort('./assistanceJSONs/completeOptions.json', './assistanceJSONs/filters.json')
+                                
+                                if f_ok:
+                                    # Refresh the options area
+                                    options_area.refresh()
+                                else:
+                                    options_button_text = "Error: No s'han pogut filtrar les opcions completes."
                             else:
                                 options_button_text = "Error: No s'han pogut generar les opcions completes."
                         else:
