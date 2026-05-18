@@ -76,13 +76,9 @@ def processInputs(f_min, f_max, time, num_chan):
     
     
 # Generate Options Functions
-def generatePartialOptions(fc, bw, mcr_converter_rates_table_path, partial_options_path):
+def generatePartialOptions(f_min, f_max, mcr_converter_rates_table_path, partial_options_path):
     # Create the array for the partialOptions
     partial_options = []
-    
-    # Determine the min and max frequencies of the interest BW
-    f_min_target = fc - (bw / 2)
-    f_max_target = fc + (bw / 2)
     
     # Read mcr_converter_rates table JSON file
     mcr_converter_rates_table = readJSON(mcr_converter_rates_table_path)
@@ -110,7 +106,7 @@ def generatePartialOptions(fc, bw, mcr_converter_rates_table_path, partial_optio
             margin = 0.1 * nyquist_bw
             
             # Iterate through zones (1st up to the 8th)
-            current_f_bottom = f_min_target # Helper variable to keep track of the frequencies
+            current_f_bottom = f_min # Helper variable to keep track of the frequencies
             for zone_idx in range(1, 9): 
                 # Get the min and max frequencies of the current Nyquist zone
                 zone_min = (zone_idx - 1) * nyquist_bw
@@ -122,7 +118,7 @@ def generatePartialOptions(fc, bw, mcr_converter_rates_table_path, partial_optio
                 
                 # Check if our target signal overlaps with this safe zone
                 overlap_min = max(current_f_bottom, safe_min)
-                overlap_max = min(f_max_target, safe_max)
+                overlap_max = min(f_max, safe_max)
                 
                 # If there is an overlap, we create a partial option for this zone
                 if overlap_max > overlap_min:
@@ -137,7 +133,7 @@ def generatePartialOptions(fc, bw, mcr_converter_rates_table_path, partial_optio
                         "f_start": overlap_min,
                         "f_end": overlap_max,
                         "chans_needed": chans_needed,
-                        "is_complete": (overlap_min == f_min_target and overlap_max == f_max_target)
+                        "is_complete": (overlap_min == f_min and overlap_max == f_max)
                     }
                     partial_options.append(option)
                     
@@ -149,7 +145,7 @@ def generatePartialOptions(fc, bw, mcr_converter_rates_table_path, partial_optio
     
     return True
     
-def generateCompleteOptions(fc, bw, partial_options_path):
+def generateCompleteOptions(f_min, f_max, partial_options_path):
     complete_options = []
     
     # Read the partial options from the json file
@@ -157,10 +153,6 @@ def generateCompleteOptions(fc, bw, partial_options_path):
     if partial_options is None:
         print("Error: No s'ha pogut carregar les opcions parcials des del fitxer JSON.")
         return False
-
-    # Determine the min and max frequencies of the interest BW
-    f_min_target = fc - (bw / 2)
-    f_max_target = fc + (bw / 2)
 
     # Iterate through the partial options and generate complete options by combining them if needed   
     while len(partial_options) > 0:
@@ -170,7 +162,7 @@ def generateCompleteOptions(fc, bw, partial_options_path):
         if partial_option["is_complete"]:
             # Create a complete option
             complete_option = {
-                "complete_option_id": partial_option["option_id"],
+                "complete_option_id": len(complete_options),
                 "partial_options": [partial_option],
                 "f_start": partial_option["f_start"],
                 "f_end": partial_option["f_end"],
@@ -214,7 +206,7 @@ def generateCompleteOptions(fc, bw, partial_options_path):
                         combination["partial_options_list"].append(current_partial_option)
                         
                         # Check if the combination is complete
-                        if(combination["partial_options_list"][-1]["f_end"] >= f_max_target and combination["partial_options_list"][0]["f_start"] <= f_min_target):
+                        if(combination["partial_options_list"][-1]["f_end"] >= f_max and combination["partial_options_list"][0]["f_start"] <= f_min):
                             combination["is_complete"] = True
                         else:
                             total_options_checked_since_last_expansion = 0 # We reset this counter since we have expanded at least one combination   
@@ -224,7 +216,7 @@ def generateCompleteOptions(fc, bw, partial_options_path):
                         combination["partial_options_list"].insert(0, current_partial_option)
                         
                         # Check if the combination is complete
-                        if(combination["partial_options_list"][-1]["f_end"] >= f_max_target and combination["partial_options_list"][0]["f_start"] <= f_min_target):
+                        if(combination["partial_options_list"][-1]["f_end"] >= f_max and combination["partial_options_list"][0]["f_start"] <= f_min):
                             combination["is_complete"] = True
                         else:
                             total_options_checked_since_last_expansion += 1 # We increment this counter since we have not expanded this combination

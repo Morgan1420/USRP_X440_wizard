@@ -93,8 +93,6 @@ class InputBox:
             if self.unit:
                 unit_surf = font.render(self.unit, True, (0, 0, 0))
                 screen.blit(unit_surf, (self.rect.right + 8, self.rect.y + (self.rect.h - unit_surf.get_height()) // 2))
-
-
 class OptionsScrollArea:
     def __init__(self, x, y, w, h, font, json_path='./assistanceJSONs/completeOptions.json'):
         self.rect = pygame.Rect(x, y, w, h)
@@ -197,6 +195,8 @@ class OptionsScrollArea:
         pygame.draw.rect(screen, (0, 120, 200), self.start_button_rect)
         txt = self.font.render('Start capture', True, (255, 255, 255))
         screen.blit(txt, (self.start_button_rect.x + (self.start_button_rect.w - txt.get_width())/2, self.start_button_rect.y + (self.start_button_rect.h - txt.get_height())/2))
+
+
 # Game main function
 def run_ui(callback):
     clock = pygame.time.Clock()
@@ -273,9 +273,9 @@ def run_ui(callback):
                     are_inputs_valid, userInputs = processInputs(f_min=fmin_val, f_max=fmax_val, time=time_val, num_chan=num_chan_val)
                     if are_inputs_valid:
                         print("Generating options...")
-                        p_ok = generatePartialOptions(userInputs["fc"], userInputs["bw"], './assistanceJSONs/mcr_converter_rates_table.json', './assistanceJSONs/partialOptions.json')
+                        p_ok = generatePartialOptions(userInputs["f_min"], userInputs["f_max"], './assistanceJSONs/mcr_converter_rates_table.json', './assistanceJSONs/partialOptions.json')
                         if p_ok:
-                            c_ok = generateCompleteOptions(userInputs["fc"], userInputs["bw"], './assistanceJSONs/partialOptions.json')
+                            c_ok = generateCompleteOptions(userInputs["f_min"], userInputs["f_max"], './assistanceJSONs/partialOptions.json')
                             if c_ok:
                                 options_button_text = "S'han generat les opcions correctament."
                                 # refresh displayed options
