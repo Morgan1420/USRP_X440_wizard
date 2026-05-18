@@ -2,6 +2,7 @@ import pygame
 import json
 
 from .input_box import InputBox
+from .select_box import SelectBox
 
 
 class FilterPopUp:
@@ -9,7 +10,7 @@ class FilterPopUp:
         self.font = font
         self.json_path = json_path
         self.width = 420
-        self.height = 200
+        self.height = 250
         self.active = False
         self.min_input = None
         self.max_input = None
@@ -35,6 +36,8 @@ class FilterPopUp:
         # forward events to inputs
         self.min_input.handle_event(event)
         self.max_input.handle_event(event)
+        if getattr(self, 'sort_select', None) is not None:
+            self.sort_select.handle_event(event)
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.ok_rect and self.ok_rect.collidepoint(event.pos):
@@ -65,6 +68,11 @@ class FilterPopUp:
             'min_channels': min_val,
             'max_channels': max_val
         }
+        # include sorting option
+        if getattr(self, 'sort_select', None) is not None:
+            obj['sorting'] = self.sort_select.get_value()
+        else:
+            obj['sorting'] = None
         try:
             with open(self.json_path, 'w') as f:
                 json.dump(obj, f, indent=2)
@@ -77,23 +85,88 @@ class FilterPopUp:
         x = (sw - self.width) // 2
         y = (sh - self.height) // 2
 
+        # Desired sizes
         input_w = 140
         input_h = 32
-        input_x = x + 120
+        desired_input_x = x + 120
+
+        # Enforce required label gap
+        label_gap = 250
+
+        # button sizes (used for layout decisions)
+        btn_w = 80
+        btn_h = 34
+
+        # Compute allowed input x range so label (at input_x - label_gap) stays >= popup left + 8
+        min_input_x = x + 8 + label_gap
+        max_input_x = x + self.width - 8 - input_w
+
+        # If there's no room for the requested label gap with current input_w, shrink input_w
+        if min_input_x > max_input_x:
+            # compute available width between left label edge and right padding
+            available_input_w = (x + self.width - 8) - (x + 8 + label_gap)
+            # ensure a minimal width
+            min_width_allowed = 40
+            if available_input_w < min_width_allowed:
+                # fall back: reduce label_gap to fit minimal input width
+                label_gap = max(8, (x + self.width - 8) - (x + 8) - min_width_allowed)
+                available_input_w = (x + self.width - 8) - (x + 8 + label_gap)
+            input_w = max(min_width_allowed, int(available_input_w))
+            max_input_x = x + self.width - 8 - input_w
+
+        # final input x clamped to allowable range
+        input_x = max(min_input_x, min(desired_input_x, max_input_x))
         input_y1 = y + 40
         input_y2 = y + 90
 
+        # Create or update inputs, passing the enforced label_gap
         if self.min_input is None:
-            self.min_input = InputBox(input_x, input_y1, input_w, input_h, 'Min num of channels', '', self.font)
+            self.min_input = InputBox(input_x, input_y1, input_w, input_h, 'Min num of channels', '', self.font, label_gap=label_gap)
         else:
             self.min_input.rect.x = input_x
             self.min_input.rect.y = input_y1
+            self.min_input.label_gap = label_gap
 
         if self.max_input is None:
-            self.max_input = InputBox(input_x, input_y2, input_w, input_h, 'Max num of chanells', '', self.font)
+            self.max_input = InputBox(input_x, input_y2, input_w, input_h, 'Max num of chanells', '', self.font, label_gap=label_gap)
         else:
             self.max_input.rect.x = input_x
             self.max_input.rect.y = input_y2
+            self.max_input.label_gap = label_gap
+
+        # Sorting select box placed below the inputs using the same vertical gap
+        gap = input_y2 - input_y1
+        select_y = input_y2 + gap
+        # ensure it fits above buttons; clamp if necessary
+        max_select_y = y + self.height - btn_h - 12 - input_h - 8
+        if select_y > max_select_y:
+            select_y = max_select_y
+            # ensure select stays below input_y2
+            min_select_y = input_y2 + 8
+            if select_y < min_select_y:
+                select_y = min_select_y
+
+        if getattr(self, 'sort_select', None) is None:
+            self.sort_select = SelectBox(input_x, select_y, input_w, input_h, 'Sorting option', ['max chan', 'min chan', 'min overlap'], self.font, default_index=0, label_gap=label_gap)
+        else:
+            self.sort_select.rect.x = input_x
+            self.sort_select.rect.y = select_y
+            self.sort_select.rect.w = input_w
+            self.sort_select.label_gap = label_gap
+
+        # Decide whether the select should expand upwards or downwards
+        if getattr(self, 'sort_select', None) is not None:
+            n_opts = len(self.sort_select.options)
+            needed_h = n_opts * (input_h + 2)
+            available_below = (y + self.height - 8) - (self.sort_select.rect.bottom)
+            available_above = (self.sort_select.rect.top) - (y + 8)
+            # prefer below if it fits, otherwise use above if that fits, else pick larger space
+            if available_below >= needed_h:
+                self.sort_select.expand_up = False
+            elif available_above >= needed_h:
+                self.sort_select.expand_up = True
+            else:
+                self.sort_select.expand_up = (available_above > available_below)
 
         # OK / Cancel positions
         btn_w = 80
@@ -129,6 +202,8 @@ class FilterPopUp:
         # Draw inputs
         self.min_input.draw(screen)
         self.max_input.draw(screen)
+        if getattr(self, 'sort_select', None) is not None:
+            self.sort_select.draw(screen)
 
         # Draw buttons
         pygame.draw.rect(screen, (200, 200, 200), self.cancel_rect)
