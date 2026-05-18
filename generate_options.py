@@ -20,7 +20,7 @@ def storeJSON(data, json_path):
         print(f"Error: saving JSON failed: {e}")
 
 # Input functions
-def areInputsValid(f_min, f_max, fc, bw, time, num_chan):
+def areInputsValid(f_min, f_max, fc, bw, time):
     # F_min
     if f_min is None or f_min <= 0:
         return False, "Error: Valor per la freqüència mínima (F_min) invàlid, aquest ha de ser un nombre positiu."
@@ -50,24 +50,20 @@ def areInputsValid(f_min, f_max, fc, bw, time, num_chan):
         return False, "Error: Valor per el temps (Time) invàlid, aquest ha de ser un nombre positiu."
     if time > 5:
         return True, "Warning: Valor per el temps (Time) massa alt. Consider baixar-lo per evitar fitxers de captura grans."
-    
-    # Num channels
-    if num_chan < 1 or num_chan > 8:
-        return False, "Error: Valor per el nombre de canals (Num Channels) invàlid. Ha de ser un enter entre 1 i 8."
-    
+
     # Else: if all is good
     return True, "Tots els paràmetres són vàlids."
 
-def processInputs(f_min, f_max, time, num_chan):    
+def processInputs(f_min, f_max, time):    
     
     # Extract bw i fc
     bw = f_max - f_min
     fc = f_min + bw/2
     
     # Store inputs if they are valid
-    if(areInputsValid(f_min=f_min, f_max=f_max, fc=fc, bw=bw, time=time, num_chan=num_chan)):
+    if(areInputsValid(f_min=f_min, f_max=f_max, fc=fc, bw=bw, time=time)):
         # Create an empty dictionary of inputs
-        userInputs = {"f_min": f_min, "f_max": f_max, "fc": fc, "bw": bw, "time": time, "num_chan": num_chan }
+        userInputs = {"f_min": f_min, "f_max": f_max, "fc": fc, "bw": bw, "time": time }
         return True, userInputs
     
     

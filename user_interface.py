@@ -93,6 +93,7 @@ class InputBox:
             if self.unit:
                 unit_surf = font.render(self.unit, True, (0, 0, 0))
                 screen.blit(unit_surf, (self.rect.right + 8, self.rect.y + (self.rect.h - unit_surf.get_height()) // 2))
+
 class OptionsScrollArea:
     def __init__(self, x, y, w, h, font, json_path='./assistanceJSONs/completeOptions.json'):
         self.rect = pygame.Rect(x, y, w, h)
@@ -211,11 +212,9 @@ def run_ui(callback):
     input_f_min = InputBox(150, 50, 140, 32, "F_min:", "1", multipliers=fc_multipliers, unit="Hz", default_multiplier_index=3)
     input_f_max = InputBox(150, 100, 140, 32, "F_max:", "2", multipliers=bw_multipliers, unit="Hz", default_multiplier_index=3) 
     input_time = InputBox(WIDTH/2 + 150, 50, 140, 32, "Temps:", "1", multipliers=time_multipliers, unit="s")
-    input_num_chan = InputBox(WIDTH/2 + 150, 100, 140, 32, "#Chan:*", "1", multipliers=None, unit="")
-
     # ------- "Genrar Opcions" button
     # Positioning
-    inputs_bottom = max(input_f_max.rect.bottom, input_num_chan.rect.bottom)
+    inputs_bottom = max(input_f_min.rect.bottom, input_f_max.rect.bottom, input_time.rect.bottom)
     options_button_width = 200
     options_button_height = 40
     options_button_rect = pygame.Rect(WIDTH/2 - options_button_width/2, inputs_bottom + 20, options_button_width, options_button_height)
@@ -250,7 +249,6 @@ def run_ui(callback):
             input_f_min.handle_event(event)
             input_f_max.handle_event(event)
             input_time.handle_event(event)
-            input_num_chan.handle_event(event)
 
             # Forward event to options area (handles clicks/scroll)
             options_area.handle_event(event)
@@ -264,13 +262,12 @@ def run_ui(callback):
                         fmin_val = float(input_f_min.text) * input_f_min.get_multiplier_value()
                         fmax_val = float(input_f_max.text) * input_f_max.get_multiplier_value()
                         time_val = float(input_time.text) * input_time.get_multiplier_value()
-                        num_chan_val = int(input_num_chan.text)
                     except ValueError:
                         print("Error: Please enter valid numeric values.")
-                        fmin_val = fmax_val = time_val = num_chan_val = None
+                        fmin_val = fmax_val = time_val = None
 
                     # Check if values are valid
-                    are_inputs_valid, userInputs = processInputs(f_min=fmin_val, f_max=fmax_val, time=time_val, num_chan=num_chan_val)
+                    are_inputs_valid, userInputs = processInputs(f_min=fmin_val, f_max=fmax_val, time=time_val)
                     if are_inputs_valid:
                         print("Generating options...")
                         p_ok = generatePartialOptions(userInputs["f_min"], userInputs["f_max"], './assistanceJSONs/mcr_converter_rates_table.json', './assistanceJSONs/partialOptions.json')
@@ -299,7 +296,6 @@ def run_ui(callback):
         input_f_min.draw(screen)
         input_f_max.draw(screen)
         input_time.draw(screen)
-        input_num_chan.draw(screen)
 
         # "Genrar Opcions" button
         pygame.draw.rect(screen, (0, 120, 200), options_button_rect)
