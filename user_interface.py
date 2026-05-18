@@ -17,6 +17,7 @@ font = pygame.font.Font(None, 32)
 from UI_components.input_box import InputBox
 from UI_components.options_scroll_area import OptionsScrollArea
 from UI_components.filter_pop_up import FilterPopUp
+from UI_components.option_details import OptionDetailsScreen
 
 
 # Game main function
@@ -64,6 +65,9 @@ def run_ui(callback):
     # Filter popup
     filter_popup = FilterPopUp(font)
 
+    # Option details screen (modal)
+    details_screen = None
+
     # ------- Main loop
     running = True
     while running:
@@ -73,7 +77,14 @@ def run_ui(callback):
             if event.type == pygame.QUIT:
                 running = False
 
-            # If popup active, let it handle events first (blocks underlying UI)
+            # If details screen active, let it handle events first (blocks underlying UI)
+            if details_screen and details_screen.active:
+                res = details_screen.handle_event(event)
+                if res == 'close':
+                    details_screen = None
+                continue
+
+            # If popup active, let it handle events (blocks underlying UI)
             if filter_popup.active:
                 res = filter_popup.handle_event(event, screen)
                 if res == 'ok':
@@ -87,7 +98,11 @@ def run_ui(callback):
             input_time.handle_event(event)
 
             # Forward event to options area (handles clicks/scroll)
-            options_area.handle_event(event)
+            res = options_area.handle_event(event)
+            if res and res[0] == 'show':
+                # Open details screen for this item
+                details_screen = OptionDetailsScreen(res[1], font, WIDTH, HEIGHT)
+                continue
 
             # Handle button clicks
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -163,6 +178,9 @@ def run_ui(callback):
         options_area.draw(screen)
         # Draw filter popup if active
         filter_popup.draw(screen)
+        # Draw details screen if active (on top)
+        if details_screen and details_screen.active:
+            details_screen.draw(screen)
         # Update display
         pygame.display.flip()
         clock.tick(30)

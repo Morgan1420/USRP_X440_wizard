@@ -18,6 +18,9 @@ class OptionsScrollArea:
         btn_x = x + (w - btn_w) // 2
         btn_y = y + h + 12
         self.start_button_rect = pygame.Rect(btn_x, btn_y, btn_w, btn_h)
+        # per-item "Mostra" button dimensions
+        self.item_button_w = 84
+        self.item_button_h = 28
 
     def refresh(self):
         # Load complete options from JSON
@@ -49,9 +52,22 @@ class OptionsScrollArea:
                 if 0 <= idx < len(self.items):
                     self.selected_index = int(idx)
 
+                # Check if the "Mostra" button for that item was clicked
+                # compute item rect and button rect
+                if 0 <= idx < len(self.items):
+                    item_y = self.rect.y + (idx * (self.item_height + self.padding)) - self.scroll + self.padding
+                    item_rect = pygame.Rect(self.rect.x + self.padding, int(item_y), self.rect.w - self.padding * 2, self.item_height)
+                    btn_x = item_rect.right - self.item_button_w - 8
+                    btn_y = item_rect.y + (item_rect.h - self.item_button_h)//2
+                    btn_rect = pygame.Rect(btn_x, btn_y, self.item_button_w, self.item_button_h)
+                    if btn_rect.collidepoint(event.pos):
+                        return ('show', self.items[int(idx)])
+
             # Start capture button click (no action for now)
             if self.start_button_rect.collidepoint(event.pos):
                 print('Start capture clicked (not implemented)')
+
+        return None
 
         # Clamp scroll
         max_scroll = max(0, len(self.items) * (self.item_height + self.padding) - self.rect.h)
@@ -95,6 +111,14 @@ class OptionsScrollArea:
             range_text = f"{int(f_start)} - {int(f_end)} Hz" if f_start != '' and f_end != '' else ''
             r_surf = self.font.render(range_text, True, (50, 50, 50))
             screen.blit(r_surf, (item_rect.x + 8, item_rect.y + 32))
+
+            # "Mostra" button on the right
+            btn_x = item_rect.right - self.item_button_w - 8
+            btn_y = item_rect.y + (item_rect.h - self.item_button_h)//2
+            btn_rect = pygame.Rect(btn_x, btn_y, self.item_button_w, self.item_button_h)
+            pygame.draw.rect(screen, (100, 180, 100), btn_rect)
+            btxt = self.font.render('Mostra', True, (255, 255, 255))
+            screen.blit(btxt, (btn_rect.x + (btn_rect.w - btxt.get_width())/2, btn_rect.y + (btn_rect.h - btxt.get_height())/2))
 
             y += self.item_height + self.padding
 

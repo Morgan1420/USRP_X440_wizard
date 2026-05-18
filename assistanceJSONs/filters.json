@@ -1,5 +1,5 @@
 {
-  "min_channels": 4,
+  "min_channels": null,
   "max_channels": null,
   "sorting": "min chan"
 }
