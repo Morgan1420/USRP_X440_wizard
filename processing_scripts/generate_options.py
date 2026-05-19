@@ -197,7 +197,7 @@ def generateCompleteOptions(f_min, f_max, partial_options_path):
                         continue
                     
                     # If the current partial option f_min is smaller than the combination.list[-1] f_max and greater than the combination.list[-1] f_min but greater than the combination.list[-2] f_max(provided it exists), then we append it to the end of the combination list and check if it is complete.
-                    if current_partial_option["f_start"] < combination["partial_options_list"][-1]["f_end"] and current_partial_option["f_end"] > combination["partial_options_list"][-1]["f_end"] and (len(combination["partial_options_list"]) == 1 or current_partial_option["f_start"] > combination["partial_options_list"][-2]["f_end"]):
+                    if current_partial_option["f_start"] < combination["partial_options_list"][-1]["f_end"] and current_partial_option["f_start"] > combination["partial_options_list"][-1]["f_end"] and current_partial_option["f_end"] > combination["partial_options_list"][-1]["f_end"] and (len(combination["partial_options_list"]) == 1 or current_partial_option["f_start"] > combination["partial_options_list"][-2]["f_end"]):
                         combination["partial_options_list"].append(current_partial_option)
                         
                         # Check if the combination is complete
@@ -207,7 +207,7 @@ def generateCompleteOptions(f_min, f_max, partial_options_path):
                             total_options_checked_since_last_expansion = 0 # We reset this counter since we have expanded at least one combination   
                         
                     # If the current partial option f_max is greater than the combination.list[0] f_min and smaller than the combination.list[0] f_max but smaller than the combination.list[1] f_min(provided it exists), then we append it to the start of the combination list and check if it is complete.
-                    elif current_partial_option["f_end"] > combination["partial_options_list"][0]["f_start"] and current_partial_option["f_start"] < combination["partial_options_list"][0]["f_start"] and (len(combination["partial_options_list"]) == 1 or current_partial_option["f_end"] < combination["partial_options_list"][1]["f_start"]):
+                    elif current_partial_option["f_end"] > combination["partial_options_list"][0]["f_start"] and current_partial_option["f_end"] < combination["partial_options_list"][0]["f_end"] and current_partial_option["f_start"] < combination["partial_options_list"][0]["f_start"] and (len(combination["partial_options_list"]) == 1 or current_partial_option["f_end"] < combination["partial_options_list"][1]["f_start"]):
                         combination["partial_options_list"].insert(0, current_partial_option)
                         
                         # Check if the combination is complete
