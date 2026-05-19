@@ -151,9 +151,13 @@ class OptionDetailsScreen:
                 y += self.line_h
 
             # channel plot: draw only this partial using the Plot helper
-            ch_plot_h = 160
+            ch_plot_h = 200
             ch_plot_rect = pygame.Rect(x, y + 8, panel_rect.w - self.padding*2, ch_plot_h)
             plotter.draw(screen, ch_plot_rect, self.option, currentPartialOption=get_partial_id(pp, idx))
+            
+            # Draw Nyquist zones for this partial option
+            plotter.addNyquistZones(screen, ch_plot_rect, pp)
+            
             y = ch_plot_rect.bottom + self.section_gap
 
         screen.set_clip(clip)
