@@ -63,9 +63,19 @@ class OptionsScrollArea:
                     if btn_rect.collidepoint(event.pos):
                         return ('show', self.items[int(idx)])
 
-            # Start capture button click (no action for now)
+            # Start capture button click -> signal to open hardware config screen
             if self.start_button_rect.collidepoint(event.pos):
-                print('Start capture clicked (not implemented)')
+                # Only allow starting capture when an item is selected
+                if self.selected_index is None:
+                    return None
+                try:
+                    idx = int(self.selected_index)
+                except Exception:
+                    return None
+                if idx < 0 or idx >= len(self.items):
+                    return None
+                # return the selected item as payload
+                return ('start_capture', self.items[idx])
 
         return None
 
@@ -124,7 +134,10 @@ class OptionsScrollArea:
 
         screen.set_clip(clip)
 
-        # Draw start capture button
-        pygame.draw.rect(screen, (0, 120, 200), self.start_button_rect)
-        txt = self.font.render('Start capture', True, (255, 255, 255))
+        # Draw start capture button (disabled if no selection)
+        enabled = (self.selected_index is not None and 0 <= int(self.selected_index) < len(self.items))
+        btn_color = (0, 120, 200) if enabled else (160, 160, 160)
+        txt_color = (255, 255, 255) if enabled else (200, 200, 200)
+        pygame.draw.rect(screen, btn_color, self.start_button_rect)
+        txt = self.font.render('Start capture', True, txt_color)
         screen.blit(txt, (self.start_button_rect.x + (self.start_button_rect.w - txt.get_width())/2, self.start_button_rect.y + (self.start_button_rect.h - txt.get_height())/2))

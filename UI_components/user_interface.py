@@ -18,6 +18,7 @@ from UI_components.input_box import InputBox
 from UI_components.options_scroll_area import OptionsScrollArea
 from UI_components.filter_pop_up import FilterPopUp
 from UI_components.option_details import OptionDetailsScreen
+from UI_components.hardwareConfig import HardwareConfigScreen
 
 
 # Game main function
@@ -67,6 +68,9 @@ def run_ui(callback):
 
     # Option details screen (modal)
     details_screen = None
+    # Hardware config screen (will be opened full-screen when requested)
+    hw_config_screen = HardwareConfigScreen(font, WIDTH, HEIGHT)
+    in_hw_screen = False
 
     # ------- Main loop
     running = True
@@ -92,6 +96,23 @@ def run_ui(callback):
                     pass
                 continue
 
+            # If hardware config screen is active (full-screen), route all events to it
+            if in_hw_screen:
+                res = hw_config_screen.handle_event(event)
+                if res == 'cancel':
+                    in_hw_screen = False
+                elif isinstance(res, tuple) and res[0] == 'capture':
+                    config = res[1]
+                    in_hw_screen = False
+                    if callback:
+                        try:
+                            callback(config)
+                        except Exception as e:
+                            print("Capture callback failed:", e)
+                    options_button_text = "Capture started"
+                    are_inputs_valid = True
+                continue
+
             # Handle input_boxes events
             input_f_min.handle_event(event)
             input_f_max.handle_event(event)
@@ -99,10 +120,16 @@ def run_ui(callback):
 
             # Forward event to options area (handles clicks/scroll)
             res = options_area.handle_event(event)
-            if res and res[0] == 'show':
-                # Open details screen for this item
-                details_screen = OptionDetailsScreen(res[1], font, WIDTH, HEIGHT)
-                continue
+            if res:
+                if res[0] == 'show':
+                    # Open details screen for this item
+                    details_screen = OptionDetailsScreen(res[1], font, WIDTH, HEIGHT)
+                    continue
+                if res[0] == 'start_capture':
+                    in_hw_screen = True
+                    selected_item = res[1] if len(res) > 1 else None
+                    hw_config_screen.open(initial=selected_item, fullscreen=True)
+                    continue
 
             # Handle button clicks
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -151,6 +178,13 @@ def run_ui(callback):
         # Background
         screen.fill((255, 255, 255))
 
+        # If the hardware-config screen is active it replaces the whole UI
+        if in_hw_screen:
+            hw_config_screen.draw(screen)
+            pygame.display.flip()
+            clock.tick(30)
+            continue
+
         # Input_boxes
         input_f_min.draw(screen)
         input_f_max.draw(screen)
@@ -174,6 +208,7 @@ def run_ui(callback):
         else:
             options_button_text_surf = font.render(options_button_text, True, (0, 150, 0))
             screen.blit(options_button_text_surf, (WIDTH/2 - options_button_text_surf.get_width()/2, options_button_rect.bottom + 10))
+
         # Draw options scroll area
         options_area.draw(screen)
         # Draw filter popup if active

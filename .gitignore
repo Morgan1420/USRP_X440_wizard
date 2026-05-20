@@ -4,3 +4,5 @@ venv/
 assistanceJSONs/partialOptions.json
 assistanceJSONs/completeOptions.json
 assistanceJSONs/filteredOptions.json
+assistanceJSONs/filters.json
+context.md

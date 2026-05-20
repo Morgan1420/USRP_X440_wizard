@@ -1,0 +1,11 @@
+{
+    "name": "ni-x4xx-344FF70",
+    "product": "x440",
+    "type": "x4xx",
+
+    "fpga_image": "X4_400",
+    "mgmt_addr": "158.109.76.208",
+    "QSFP28_addr_1": "192.168.10.2",
+    "QSFP28_addr_2": "None"
+    
+}
