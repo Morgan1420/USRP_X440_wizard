@@ -2,47 +2,58 @@ import pygame
 
 
 class SelectBox:
+    '''
+    This class implements a simple select box with a lable on the left and a 
+    selectable dropdown menu on the right.
+    '''
+    
+    # Init function takes and parses all the parameters
     def __init__(self, x, y, w, h, label, options, font, default_index=0, label_gap=100):
         self.rect = pygame.Rect(x, y, w, h)
         self.font = font
         self.label = label
         self.options = list(options)
         self.selected = max(0, min(default_index, len(self.options) - 1)) if self.options else None
-        self.expanded = False
-        # if True, draw the options list above the box instead of below
+        self.expanded = False # Whether the options are currently shown or not
         self.expand_up = False
         self.label_gap = label_gap
 
+    # Handle_event function:
     def handle_event(self, event):
+        # Check for mouse click events
         if event.type == pygame.MOUSEBUTTONDOWN:
-            # click on main rect toggles expand
-            if self.rect.collidepoint(event.pos):
+           
+            if self.rect.collidepoint(event.pos): # If we detect a click anywhere on the main box we open/close the options menu 
                 self.expanded = not self.expanded
-                return
-
-            # if expanded, check options area (below or above depending on expand_up)
-            if self.expanded:
+            elif self.expanded: # If it's expanded it gets trickier
+                # First calculate the height limits of each option.
                 n = len(self.options)
                 step = self.rect.h + 2
+                
+                # Depending on whether the options expand upwards or downwards, the starting y of the first option changes
                 if not self.expand_up:
                     opt_y_start = self.rect.bottom
                 else:
                     opt_y_start = self.rect.top - n * step
 
+                # Check if the click was on any of the options, if so select that option and close the menu
                 for i in range(n):
                     orect = pygame.Rect(self.rect.x, opt_y_start + i * step, self.rect.w, self.rect.h)
                     if orect.collidepoint(event.pos):
                         self.selected = i
-                        self.expanded = False
-                        return
-                # click outside options collapses
+                    
+                # Close the dropdown menu
                 self.expanded = False
+                
+            return
 
+    # Get_value function
     def get_value(self):
         if self.selected is None:
             return None
         return self.options[self.selected]
 
+    # Draw function
     def draw(self, screen):
         # label
         label_s = self.font.render(self.label, True, (0, 0, 0))
@@ -64,13 +75,17 @@ class SelectBox:
 
         # options if expanded (draw below or above)
         if self.expanded:
+            # First calculate the height limits of each option.
             n = len(self.options)
             step = self.rect.h + 2
+            
+            # Depending on whether the options expand upwards or downwards, the starting y of the first option changes
             if not self.expand_up:
                 opt_y_start = self.rect.bottom
             else:
                 opt_y_start = self.rect.top - n * step
 
+            # Draw each of the options
             for i, opt in enumerate(self.options):
                 orect = pygame.Rect(self.rect.x, opt_y_start + i * step, self.rect.w, self.rect.h)
                 pygame.draw.rect(screen, (255, 255, 255), orect)

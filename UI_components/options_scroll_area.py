@@ -3,6 +3,11 @@ import json
 
 
 class OptionsScrollArea:
+    '''
+        This component shows a scrollable list of the complete options loaded from the "complete_options.json" file.
+    '''
+    
+    # Init function takes and parses all the parameters
     def __init__(self, x, y, w, h, font, json_path='./assistanceJSONs/filteredOptions.json'):
         self.rect = pygame.Rect(x, y, w, h)
         self.font = font
@@ -12,54 +17,54 @@ class OptionsScrollArea:
         self.scroll = 0
         self.item_height = 60
         self.padding = 8
-        # Start capture button
         btn_w = 180
         btn_h = 40
         btn_x = x + (w - btn_w) // 2
         btn_y = y + h + 12
         self.start_button_rect = pygame.Rect(btn_x, btn_y, btn_w, btn_h)
-        # per-item "Mostra" button dimensions
         self.item_button_w = 84
         self.item_button_h = 28
 
+    # Assistant function to load options from JSON file
     def refresh(self):
-        # Load complete options from JSON
-        try:
-            with open(self.json_path, 'r') as f:
-                data = json.load(f)
-            if isinstance(data, list):
-                self.items = data
-            else:
-                self.items = []
-        except Exception:
+        with open(self.json_path, 'r') as f:
+            data = json.load(f)
+            
+        # Expecting a list of options, any other structure we return an empty list
+        if isinstance(data, list):
+            self.items = data
+        else:
             self.items = []
 
+    # Handle_event function:
     def handle_event(self, event):
         # Scroll wheel
         if event.type == pygame.MOUSEWHEEL:
             self.scroll -= event.y * 30
+            
+        # Mouse click events
         if event.type == pygame.MOUSEBUTTONDOWN:
-            # Mouse wheel (older systems)
-            if event.button == 4:
-                self.scroll -= 30
-            elif event.button == 5:
-                self.scroll += 30
-
-            # Click inside items
+            # Click on an option item
             if self.rect.collidepoint(event.pos):
-                rel_y = event.pos[1] - self.rect.y + self.scroll
-                idx = rel_y // (self.item_height + self.padding)
+                # Calculate which item has been clicked
+                rel_y = event.pos[1] - self.rect.y + self.scroll # Calculate relative position inside the scroll area
+                idx = rel_y // (self.item_height + self.padding) # Determine which item index corresponds to the click
+                
+                # Select the item if it's a valid index
                 if 0 <= idx < len(self.items):
+                    # Select the clicked item
                     self.selected_index = int(idx)
 
                 # Check if the "Mostra" button for that item was clicked
-                # compute item rect and button rect
                 if 0 <= idx < len(self.items):
+                    # Calculate the position of the "Mostra" button for this item
                     item_y = self.rect.y + (idx * (self.item_height + self.padding)) - self.scroll + self.padding
                     item_rect = pygame.Rect(self.rect.x + self.padding, int(item_y), self.rect.w - self.padding * 2, self.item_height)
                     btn_x = item_rect.right - self.item_button_w - 8
                     btn_y = item_rect.y + (item_rect.h - self.item_button_h)//2
                     btn_rect = pygame.Rect(btn_x, btn_y, self.item_button_w, self.item_button_h)
+                    
+                    # If the button was clicked, signal to show the details of this option
                     if btn_rect.collidepoint(event.pos):
                         return ('show', self.items[int(idx)])
 
@@ -68,24 +73,27 @@ class OptionsScrollArea:
                 # Only allow starting capture when an item is selected
                 if self.selected_index is None:
                     return None
-                try:
-                    idx = int(self.selected_index)
-                except Exception:
-                    return None
+                
+                # Get the selected item
+                idx = int(self.selected_index)
+                
+                # Check if the index is valid
                 if idx < 0 or idx >= len(self.items):
                     return None
+                
                 # return the selected item as payload
                 return ('start_capture', self.items[idx])
 
-        return None
-
-        # Clamp scroll
+        # Limit scroll to valid range
         max_scroll = max(0, len(self.items) * (self.item_height + self.padding) - self.rect.h)
         if self.scroll < 0:
             self.scroll = 0
         if self.scroll > max_scroll:
             self.scroll = max_scroll
-
+        
+        return None
+    
+    # Draw function:
     def draw(self, screen):
         # Background
         pygame.draw.rect(screen, (245, 245, 245), self.rect)
@@ -95,22 +103,24 @@ class OptionsScrollArea:
         clip = screen.get_clip()
         screen.set_clip(self.rect)
 
+        # Draw items
         y = self.rect.y - self.scroll + self.padding
         for i, item in enumerate(self.items):
+            # Item rectangle
             item_rect = pygame.Rect(self.rect.x + self.padding, int(y), self.rect.w - self.padding * 2, self.item_height)
-            # Selected highlight
+            
+            # Highlight only the selected item
             if self.selected_index == i:
                 pygame.draw.rect(screen, (200, 230, 255), item_rect)
             else:
                 pygame.draw.rect(screen, (255, 255, 255), item_rect)
+            
+            # Draw border for the item
             pygame.draw.rect(screen, (0, 0, 0), item_rect, 1)
 
             # Draw summary text
             title = item.get('complete_option_id', f'Option {i}')
-            try:
-                chans = item.get('chans_needed', '')
-            except Exception:
-                chans = ''
+            chans = item.get('chans_needed', '')
             left_text = f"{title}  chans: {chans}"
             t_surf = self.font.render(left_text, True, (0, 0, 0))
             screen.blit(t_surf, (item_rect.x + 8, item_rect.y + 8))

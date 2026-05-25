@@ -2,11 +2,21 @@ import pygame
 
 
 class Plot:
+    
+    '''
+        This class implements a simple plot of the frequency range of an option. It can show:
+        - Desired bandwidth (red box)
+        - Partial options (blue boxes)
+        - Nyquist zones (gray boxes) [OPTIONAL]
+    '''
+    
+    # Init function
     def __init__(self, font, axis_min=0.0, axis_max=4e9):
         self.font = font
         self.axis_min = axis_min
         self.axis_max = axis_max
-
+        
+    # Assistant function to calculate the x axis parameters
     def _axis_geometry(self, rect):
         margin = max(20, int(rect.w * 0.04))
         axis_start = rect.x + margin
@@ -14,49 +24,47 @@ class Plot:
         axis_w = axis_end - axis_start
         return axis_start, axis_end, axis_w, margin
 
-    def freq_to_x(self, f, rect):
-        try:
-            fv = float(f)
-        except Exception:
-            fv = self.axis_min
-        t = (fv - self.axis_min) / (self.axis_max - self.axis_min) if (self.axis_max - self.axis_min) != 0 else 0
-        t = max(0.0, min(1.0, t))
-        return int(rect.x + t * rect.w)
-
+    # Draw function:
     def draw(self, surface, rect, option, currentPartialOption=None):
-        # Clear plot area and draw a simple bottom X axis with ticks at 1G..4G
+        
+        # Clear plot area
         pygame.draw.rect(surface, (245, 245, 245), rect)
         pygame.draw.rect(surface, (0, 0, 0), rect, 1)
 
-        # Baseline (X axis) near bottom of rect with horizontal margins
+        # Assistance function to map any frequency to axis coordinates (respecting margins)
+        def map_to_axis(f):
+            fv = float(f)
+            t = (fv - self.axis_min) / (self.axis_max - self.axis_min) if (self.axis_max - self.axis_min) != 0 else 0
+            t = max(0.0, min(1.0, t))
+            return int(axis_start + t * axis_w)
+        
+        # Assistant function to determine id of partial
+        def partial_id(p, idx):
+            return p.get('partial_option_id') or p.get('id') or p.get('partial_id') or idx
+        
+        # Draw x axis
         axis_y = rect.bottom - 28
         margin = max(20, int(rect.w * 0.04))
         axis_start = rect.x + margin
         axis_end = rect.right - margin
         pygame.draw.line(surface, (0, 0, 0), (axis_start, axis_y), (axis_end, axis_y), 2)
 
-        # Small ticks: much smaller, half below axis. Labels slightly lower to avoid overlap
+        # Calculate x axis baseline markers positions
         tick_total = max(8, rect.h // 8)
         below = tick_total // 2
         label_y = axis_y + 10
         axis_w = axis_end - axis_start
 
-        # helper to map any frequency to axis coordinates (respecting margins)
-        def map_to_axis(f):
-            try:
-                fv = float(f)
-            except Exception:
-                fv = self.axis_min
-            t = (fv - self.axis_min) / (self.axis_max - self.axis_min) if (self.axis_max - self.axis_min) != 0 else 0
-            t = max(0.0, min(1.0, t))
-            return int(axis_start + t * axis_w)
-
+        # Draw x axis baseline markers
         for g in range(1, 5):
+            # Map the frequency to axis coordinates
             t = (g * 1e9 - self.axis_min) / (self.axis_max - self.axis_min) if (self.axis_max - self.axis_min) != 0 else 0
             t = max(0.0, min(1.0, t))
             fx = int(axis_start + t * axis_w)
             top_y = axis_y - (tick_total - below)
             bottom_y = axis_y + below
+            
+            # Draw the marker and label
             pygame.draw.line(surface, (0, 0, 0), (fx, top_y), (fx, bottom_y), 2)
             lbl = self.font.render(f"{g}G", True, (0, 0, 0))
             surface.blit(lbl, (fx - lbl.get_width()//2, label_y))
@@ -64,27 +72,29 @@ class Plot:
         # Partial list (used for legend decision)
         partials = option.get('partial_options') or []
 
-        # Legend (top-left of plot)
+        # Set legend position and parameters
         legend_x = rect.x + margin + 6
         legend_y = rect.y + 6
         box_size = 12
         gap = 6
         entries = [((200, 40, 40), "red box = desired bandwidth"),
                    ((60, 130, 220), "blue box = different channels")]
-        # show gray entry only when a single partial is requested and has fcr_ghz
+        
+        # Show gray entry only when a single partial is requested and has fcr_ghz
         show_gray = False
         if currentPartialOption is not None:
             for idx, p in enumerate(partials):
-                try:
-                    pid = partial_id(p, idx)
-                except Exception:
-                    pid = idx
+                # Determine id of partial
+                pid = partial_id(p, idx)
+                
+                # If this is the requested partial and it has fcr_ghz, show the gray box entry in the legend
                 if str(pid) == str(currentPartialOption) and p.get('fcr_ghz') is not None:
                     show_gray = True
                     break
         if show_gray:
             entries.append(((120, 120, 120), "gray box = Nyquist zones"))
 
+        # Draw legend
         for color, text in entries:
             pygame.draw.rect(surface, color, (legend_x, legend_y, box_size, box_size))
             lbl = self.font.render(text, True, (0, 0, 0))
@@ -113,9 +123,7 @@ class Plot:
         # Draw partial options (blue boxes)
         partials = option.get('partial_options') or []
 
-        # helper to determine id of partial
-        def partial_id(p, idx):
-            return p.get('partial_option_id') or p.get('id') or p.get('partial_id') or idx
+       
 
         # select which partials to draw
         draw_partials = []
@@ -126,7 +134,8 @@ class Plot:
                 if str(partial_id(p, idx)) == str(currentPartialOption):
                     draw_partials = [(idx, p)]
                     break
-
+        
+        # Draw Nyquist zones if needed
         for idx, p in draw_partials:
             pf1 = p.get('f_start')
             pf2 = p.get('f_end')
@@ -169,6 +178,7 @@ class Plot:
                 # simple rectangular outline only (no roof)
                 pygame.draw.rect(surface, (20, 80, 140), (sx1, base_y, bw, blue_h), 2)
 
+    # Assistant function to draw Nyquist zones for a given partial option
     def addNyquistZones(self, surface, rect, partial):
         # Draw repeated boxes above the axis that span the full axis width.
         # Box frequency length = 0.5 * fcr_ghz (converted to Hz).

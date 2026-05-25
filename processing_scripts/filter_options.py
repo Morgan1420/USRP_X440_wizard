@@ -68,7 +68,11 @@ def filter_and_sort(complete_options_path="./assistanceJSONs/completeOptions.jso
         if max_ch is not None:
             if ch is None or ch > int(max_ch):
                 continue
-                
+        
+        # Filter options with more than 2 partial options (USRP X440 only supports 2 different sample frequencies at the same time).
+        partials = item.get('partial_options', [])
+        if len(partials) > 2:
+            continue
         
         filtered.append(item)
 

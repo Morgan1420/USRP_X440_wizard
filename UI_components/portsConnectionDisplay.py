@@ -2,7 +2,8 @@ import pygame
 
 
 class PortsConnectionDisplay:
-    """Display a horizontal ports row as dots inside a rounded rectangle.
+    """
+Display a horizontal ports row as dots inside a rounded rectangle.
     Click a dot to toggle selection. Use `set_rect` to update layout.
     """
 
