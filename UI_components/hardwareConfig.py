@@ -1,5 +1,5 @@
 import pygame
-from .portsConnectionDisplay import PortsConnectionDisplay, PartialBoxesDisplay
+from .portsConnectionDisplay import PortsConnectionDisplay, PartialOptionsBoxesDisplay
 
 
 class HardwareConfigScreen:
@@ -25,10 +25,10 @@ class HardwareConfigScreen:
         # Ports display helper
         self._ports_display_h = 72
         self.ports_display = PortsConnectionDisplay(pygame.Rect(self.surface_rect.left + 10, self.surface_rect.top + 48, self.surface_rect.w - 20, self._ports_display_h), num_ports=self.num_ports, labels=self.ports, font=self.font)
-        # Partial boxes display (populated when an option is provided)
-        self.partials_display = PartialBoxesDisplay(pygame.Rect(self.surface_rect.left + 10, self.surface_rect.top + 48 + self._ports_display_h + 12, self.surface_rect.w - 20, 56), self.font)
+        # Partial options boxes display (populated when an option is provided)
+        self.partials_display = PartialOptionsBoxesDisplay(pygame.Rect(self.surface_rect.left + 10, self.surface_rect.top + 48 + self._ports_display_h + 12, self.surface_rect.w - 20, 56), self.font)
         self.current_option = None
-        # Connection state: port_idx -> box_idx (flattened partial index)
+        # Connection state: port_idx -> box_idx (flattened partial_option index)
         self.port_to_box = {}
         # Reverse mapping: box_idx -> set(port_idx)
         self.box_to_ports = {}
@@ -98,24 +98,82 @@ class HardwareConfigScreen:
         partials = []
         if isinstance(initial, dict):
             partials = initial.get('partial_options') or []
-        self.partials_display.set_partials(partials)
+        self.partials_display.set_partial_options(partials)
         # compute partials area height (reserve reasonable space above capture button)
         cap_top = self.capture_rect.y
-        # reduce vertical gap: halve previous reserved space (was -36)
-        avail = max(56, cap_top - ports_rect.bottom - 18)
-        self.partials_display.set_rect(pygame.Rect(inner.left + 10, ports_rect.bottom + 12, inner.w - 20, avail))
-        # Auto-connect each partial box to a port (one-to-one) up to available ports
+        available_space = max(24, cap_top - ports_rect.bottom - 18)
+
+        # estimate minimal needed height based on partials and font metrics
+        minimal_needed = 0
+        pz = getattr(self.partials_display, 'zone_boxes', None) or []
+        if pz and self.font:
+            line_h = int(self.font.get_height())
+            title_h = line_h + 4
+            content_h = max(12, line_h * 2 + 4)
+            # zones are side-by-side; need height to fit the tallest zone
+            for z in pz:
+                n = max(1, len(z))
+                zone_h = title_h + 6 + n * content_h + (n - 1) * self.partials_display.padding + 8
+                minimal_needed = max(minimal_needed, zone_h)
+        else:
+            # fallback: compute rows needed and estimate
+            if self.font:
+                line_h = int(self.font.get_height())
+                content_h = max(12, line_h * 2 + 4)
+            else:
+                content_h = self.partials_display.box_h
+            per_row = max(1, (inner.w + self.partials_display.padding) // (self.partials_display.box_w + self.partials_display.padding))
+            rows = (max(1, len(self.partials_display.boxes)) + per_row - 1) // per_row
+            minimal_needed = rows * content_h + max(0, rows - 1) * self.partials_display.padding + self.partials_display.padding * 2
+
+        # choose available height: cannot exceed available_space, prefer minimal_needed
+        chosen_h = min(available_space, max(minimal_needed, 32))
+        self.partials_display.set_rect(pygame.Rect(inner.left + 10, ports_rect.bottom + 12, inner.w - 20, chosen_h))
+        # Auto-connect each partial option box to a port (one-to-one) up to available ports
+        # If there are exactly 2 partial option zones, split ports in half and assign
+        # zone 0 -> first half ports, zone 1 -> second half ports.
         self.port_to_box.clear()
         self.box_to_ports.clear()
-        n_boxes = len(self.partials_display.boxes)
-        for i in range(min(n_boxes, self.num_ports)):
-            self.port_to_box[i] = i
-            self.box_to_ports.setdefault(i, set()).add(i)
-            try:
-                self.ports_display.selected[i] = True
-                self.selected_ports[self.ports[i]] = True
-            except Exception:
-                pass
+        zone_boxes = getattr(self.partials_display, 'zone_boxes', []) or []
+        if len(zone_boxes) == 2:
+            half = self.num_ports // 2
+            # assign zone 0 boxes to ports 0..half-1
+            for j, _ in enumerate(zone_boxes[0]):
+                if j >= half:
+                    break
+                flat_idx = j
+                port_idx = j
+                self.port_to_box[port_idx] = flat_idx
+                self.box_to_ports.setdefault(flat_idx, set()).add(port_idx)
+                try:
+                    self.ports_display.selected[port_idx] = True
+                    self.selected_ports[self.ports[port_idx]] = True
+                except Exception:
+                    pass
+            # assign zone 1 boxes to ports half..end
+            offset = len(zone_boxes[0])
+            for j, _ in enumerate(zone_boxes[1]):
+                port_idx = half + j
+                if port_idx >= self.num_ports:
+                    break
+                flat_idx = offset + j
+                self.port_to_box[port_idx] = flat_idx
+                self.box_to_ports.setdefault(flat_idx, set()).add(port_idx)
+                try:
+                    self.ports_display.selected[port_idx] = True
+                    self.selected_ports[self.ports[port_idx]] = True
+                except Exception:
+                    pass
+        else:
+            n_boxes = len(self.partials_display.boxes)
+            for i in range(min(n_boxes, self.num_ports)):
+                self.port_to_box[i] = i
+                self.box_to_ports.setdefault(i, set()).add(i)
+                try:
+                    self.ports_display.selected[i] = True
+                    self.selected_ports[self.ports[i]] = True
+                except Exception:
+                    pass
 
         self.active = True
 
@@ -145,6 +203,18 @@ class HardwareConfigScreen:
         dx = px - projx
         dy = py - projy
         return dx * dx + dy * dy
+
+    def _zone_for_box(self, box_idx):
+        """Return the zone index for a flattened box index, or None."""
+        zb = getattr(self.partials_display, 'zone_boxes', None)
+        if not zb:
+            return None
+        cum = 0
+        for zi, boxes in enumerate(zb):
+            if box_idx < cum + len(boxes):
+                return zi
+            cum += len(boxes)
+        return None
 
     def handle_event(self, event):
         if not self.active:
@@ -278,6 +348,19 @@ class HardwareConfigScreen:
 
             # Helper closures
             def connect_port_to_box(port_idx, box_idx):
+                # Enforce 2-zone split rule: if there are exactly two zones,
+                # ports in the first half can only connect to zone 0 and
+                # ports in the second half can only connect to zone 1.
+                zone_boxes = getattr(self.partials_display, 'zone_boxes', []) or []
+                if len(zone_boxes) == 2:
+                    zone_idx = self._zone_for_box(box_idx)
+                    if zone_idx is not None:
+                        half = self.num_ports // 2
+                        if port_idx < half and zone_idx != 0:
+                            return
+                        if port_idx >= half and zone_idx != 1:
+                            return
+
                 # remove any previous mapping for this port
                 old = self.port_to_box.get(port_idx)
                 if old is not None and old == box_idx:
@@ -431,8 +514,31 @@ class HardwareConfigScreen:
 
         # Partials display (small boxes) under ports
         cap_top = self.capture_rect.y
-        avail = max(80, cap_top - ports_rect.bottom - 36)
-        partials_rect = pygame.Rect(inner.left + 10, ports_rect.bottom + 12, inner.w - 20, avail)
+        available_space = max(24, cap_top - ports_rect.bottom - 36)
+
+        # estimate minimal needed height similar to open()
+        minimal_needed = 0
+        pz = getattr(self.partials_display, 'zone_boxes', None) or []
+        if pz and self.font:
+            line_h = int(self.font.get_height())
+            title_h = line_h + 4
+            content_h = max(12, line_h * 2 + 4)
+            for z in pz:
+                n = max(1, len(z))
+                zone_h = title_h + 6 + n * content_h + (n - 1) * self.partials_display.padding + 8
+                minimal_needed = max(minimal_needed, zone_h)
+        else:
+            if self.font:
+                line_h = int(self.font.get_height())
+                content_h = max(12, line_h * 2 + 4)
+            else:
+                content_h = self.partials_display.box_h
+            per_row = max(1, (inner.w + self.partials_display.padding) // (self.partials_display.box_w + self.partials_display.padding))
+            rows = (max(1, len(self.partials_display.boxes)) + per_row - 1) // per_row
+            minimal_needed = rows * content_h + max(0, rows - 1) * self.partials_display.padding + self.partials_display.padding * 2
+
+        chosen_h = min(available_space, max(minimal_needed, 32))
+        partials_rect = pygame.Rect(inner.left + 10, ports_rect.bottom + 12, inner.w - 20, chosen_h)
         self.partials_display.set_rect(partials_rect)
         self.partials_display.draw(screen)
 
