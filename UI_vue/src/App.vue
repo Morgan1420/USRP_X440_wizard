@@ -3,8 +3,6 @@
     <h2>USRP X440 UI (Vue)</h2>
     
     <OptionsGeneration />
-
-
 </div>
     
 </template>

@@ -1,15 +1,19 @@
 <template>  
   <div class="inputs-display">
-    <InputBox ref="fminRef" label="F_min:" placeholder="1" :multipliers="fcMultipliers" unit="Hz" :default-multiplier-index="0" />
-    <InputBox ref="fmaxRef" label="F_max:" placeholder="2" :multipliers="fcMultipliers" unit="Hz" :default-multiplier-index="0" />
+    <InputBox ref="fminRef" label="F_min:" placeholder="500" :multipliers="fcMultipliers" unit="Hz" :default-multiplier-index="0" />
+    <InputBox ref="fmaxRef" label="F_max:" placeholder="750" :multipliers="fcMultipliers" unit="Hz" :default-multiplier-index="0" />
   </div>
 
   <div class="buttons-display">
     <Button label="Generar Opcions" variant="primary" @click="onGenerate" />
-    <Button label="Filters" variant="secondary" @click="openFilter" />
+    
+    <!-- NO TOCAR: Poso 2 botons perquè la variable showFilter es tornava boja en fer un toggle -->
+    <Button v-if="!showFilter" label="Filters" variant="secondary" @click="openFilterPopUp" />
+    <Button v-if="showFilter" label="Filters" variant="secondary" @click="closeFilterPopUp" />
+  
   </div>
 
-  <FilterPopUp v-if="showFilter" @save="onFilterSave" @close="showFilter = false" />
+  <FilterPopUp v-if="showFilter" @save="closeFilterPopUp" @close="closeFilterPopUp" />
 
 </template>
 
@@ -27,22 +31,63 @@ const fmaxRef = ref(null)
 const showFilter = ref(false)
 
 function onGenerate() {
+  // Recuperem els valors dels InputBox
   const fmin = fminRef.value?.getComputedValue?.()
   const fmax = fmaxRef.value?.getComputedValue?.()
-  const time = 1
+
+  // Validem els valors
   if (fmin == null || fmax == null) {
     alert('Error: Please enter valid numeric values.')
     return
   }
+  if (fmin > fmax) {
+    alert('Error: Min value must be <= max value.')
+    return
+  }
+  if (fmax > 4e9) {
+    alert('Error: Max value must be <= 4 GHz.')
+    return
+  }
+  if (fmin < 0 || fmax < 0) {
+    alert('Error: Min value must be non-negative.')
+    return
+  }
+
+  // Preparem l'objecte a enviar
+  const obj = { f_min: fmin, f_max: fmax }
+  // Enviem la petició al backend
+  try{
+    fetch('http://localhost:5000/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(obj)
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.ok) {
+        alert('Error: ' + (data.message || 'Generation failed'))
+      }
+    })
+    .catch(e => {
+      console.error(e)
+      alert('Error: Generation failed')
+    })
+  }catch(e) {
+    console.error(e)
+    alert('Error: Generation failed')
+  }
+  
+  
 }
 
-function openFilter() {
+function openFilterPopUp() {
   showFilter.value = true
 }
 
-function onFilterSave(obj) {
+function closeFilterPopUp() {
   showFilter.value = false
 }
+
 </script>
 
 <style scoped>

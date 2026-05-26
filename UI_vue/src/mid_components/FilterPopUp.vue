@@ -73,7 +73,7 @@ async function onOk() {
     const data = await res.json().catch(() => null)
     if (data && data.ok) {
       try { localStorage.setItem('filters', JSON.stringify(obj)) } catch (e) {}
-      emit('save', obj)
+      emit('save')
       emit('close')
       return
     }
@@ -83,6 +83,10 @@ async function onOk() {
     console.error('Error posting filters', e)
     alert('Error connecting to backend; ensure it is running on http://localhost:5000')
   }
+}
+
+function onCancel() {
+  emit('close')
 }
 
 onMounted(async () => {
