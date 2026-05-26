@@ -130,6 +130,63 @@ class PortsConnectionDisplay:
                 surface.blit(lbl, (cx - lbl.get_width() // 2, cy + self.dot_radius + 6))
 
 
+class PortsController:
+    """High-level controller that owns a PortsConnectionDisplay and port selection state.
+
+    This moves simple port-selection state and event handling out of HardwareConfigScreen
+    so the component encapsulates its own behaviour.
+    """
+    def __init__(self, rect, num_ports=8, labels=None, font=None, **display_kwargs):
+        self.display = PortsConnectionDisplay(rect, num_ports=num_ports, labels=labels or [], font=font, **display_kwargs)
+        self.num_ports = self.display.num_ports
+        self.ports = list(self.display.labels)
+        self.selected_ports = {p: False for p in self.ports}
+
+    def set_rect(self, rect):
+        self.display.set_rect(rect)
+
+    def handle_event(self, event):
+        """Forward event to the underlying display and toggle selection state.
+
+        Returns the toggled port index or None.
+        """
+        idx = self.display.handle_event(event)
+        if idx is not None:
+            idx = int(idx)
+            label = self.ports[idx]
+            self.selected_ports[label] = not self.selected_ports.get(label, False)
+            # Ensure visual state matches
+            try:
+                self.display.selected[idx] = self.selected_ports[label]
+            except Exception:
+                pass
+            return idx
+        return None
+
+    def set_selected_by_index(self, idx, value):
+        try:
+            idx = int(idx)
+            self.display.selected[idx] = bool(value)
+            self.selected_ports[self.ports[idx]] = bool(value)
+        except Exception:
+            pass
+
+    def get_selected_labels(self):
+        return [p for p, v in self.selected_ports.items() if v]
+
+    def get_dot_index_at(self, pos):
+        return self.display.get_dot_index_at(pos)
+
+    def get_dot_center(self, idx):
+        try:
+            return self.display.get_dot_center(idx)
+        except Exception:
+            return None
+
+    def draw(self, surface):
+        self.display.draw(surface)
+
+
 class PartialOptionsBoxesDisplay:
     '''
         Render a grid/list of small boxes representing partial_option options.
@@ -348,6 +405,7 @@ class PartialOptionsBoxesDisplay:
 
             self.zone_box_rects.append(zone_box_rects)
 
+    # Get dot functions: for the index and the center coordinates
     def get_dot_index_at(self, pos):
         for i, dcenter in enumerate(getattr(self, 'dot_centers', []) or []):
             dx = pos[0] - dcenter[0]
@@ -355,10 +413,7 @@ class PartialOptionsBoxesDisplay:
             if dx * dx + dy * dy <= (self.dot_radius + self.hit_tolerance) ** 2:
                 return i
         return None
-
     def get_dot_center(self, idx):
-        try:
-            return self.dot_centers[int(idx)]
-        except Exception:
-            return None
+        return self.dot_centers[int(idx)]
+        
 

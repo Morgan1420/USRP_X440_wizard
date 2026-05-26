@@ -1,5 +1,6 @@
 import pygame
-from .portsConnectionDisplay import PortsConnectionDisplay, PartialOptionsBoxesDisplay
+from .portsConnectionDisplay import PortsConnectionDisplay, PartialOptionsBoxesDisplay, PortsController
+from .networkConnectionDisplay import NetworkConnectionsDisplay
 
 
 class HardwareConfigScreen:
@@ -20,13 +21,15 @@ class HardwareConfigScreen:
         self.num_ports = 8
         self.ports = [f"P{i+1}" for i in range(self.num_ports)]
         self.connections = ["Ethernet", "USB", "PCIe", "Internal"]
-        self.selected_ports = {p: False for p in self.ports}
-        self.selected_connections = {c: False for c in self.connections}
-        # Ports display helper
+        # Ports controller encapsulates display + selection state
         self._ports_display_h = 72
-        self.ports_display = PortsConnectionDisplay(pygame.Rect(self.surface_rect.left + 10, self.surface_rect.top + 48, self.surface_rect.w - 20, self._ports_display_h), num_ports=self.num_ports, labels=self.ports, font=self.font)
+        self.ports_controller = PortsController(pygame.Rect(self.surface_rect.left + 10, self.surface_rect.top + 48, self.surface_rect.w - 20, self._ports_display_h), num_ports=self.num_ports, labels=self.ports, font=self.font)
+        self.selected_connections = {c: False for c in self.connections}
+        # Ports display helper (managed by PortsController)
         # Partial options boxes display (populated when an option is provided)
         self.partials_display = PartialOptionsBoxesDisplay(pygame.Rect(self.surface_rect.left + 10, self.surface_rect.top + 48 + self._ports_display_h + 12, self.surface_rect.w - 20, 56), self.font)
+        # Network connections UI (two QSFP ports)
+        self.net_display = NetworkConnectionsDisplay(pygame.Rect(self.surface_rect.left + 10, self.surface_rect.top + 48 + self._ports_display_h + 12 + 64, self.surface_rect.w - 20, 120), self.font)
         self.current_option = None
         # Connection state: port_idx -> box_idx (flattened partial_option index)
         self.port_to_box = {}
@@ -86,11 +89,12 @@ class HardwareConfigScreen:
         # Update ports display rect
         inner = self.surface_rect.inflate(-self.section_padding * 2, -self.section_padding * 2)
         ports_rect = pygame.Rect(inner.left + 10, inner.top + 48, inner.w - 20, self._ports_display_h)
-        self.ports_display.set_rect(ports_rect)
-        # sync visual selection with internal mapping
+        self.ports_controller.set_rect(ports_rect)
+        # sync visual selection with internal mapping (controller owns the mapping)
         for i, label in enumerate(self.ports):
             try:
-                self.ports_display.selected[i] = bool(self.selected_ports.get(label, False))
+                sel = bool(self.ports_controller.selected_ports.get(label, False))
+                self.ports_controller.display.selected[i] = sel
             except Exception:
                 pass
         # set current option (if any) and prepare partial boxes
@@ -129,6 +133,17 @@ class HardwareConfigScreen:
         # choose available height: cannot exceed available_space, prefer minimal_needed
         chosen_h = min(available_space, max(minimal_needed, 32))
         self.partials_display.set_rect(pygame.Rect(inner.left + 10, ports_rect.bottom + 12, inner.w - 20, chosen_h))
+        # compute network display rect below partials and above capture button
+        # estimate desired height from component metrics
+        pad = self.net_display.padding
+        header_h = int(self.font.get_height()) + 6
+        rows = self.net_display.rows_count
+        row_h = self.net_display.box_h
+        # desired height (rows + validate button) computed by network widget
+        desired_net_h = self.net_display.desired_height()
+        avail_net = max(32, cap_top - (ports_rect.bottom + 12 + chosen_h) - 12)
+        net_h = min(desired_net_h, avail_net)
+        self.net_display.set_rect(pygame.Rect(inner.left + 10, ports_rect.bottom + 12 + chosen_h + 12, inner.w - 20, net_h))
         # Auto-connect each partial option box to a port (one-to-one) up to available ports
         # If there are exactly 2 partial option zones, split ports in half and assign
         # zone 0 -> first half ports, zone 1 -> second half ports.
@@ -146,8 +161,7 @@ class HardwareConfigScreen:
                 self.port_to_box[port_idx] = flat_idx
                 self.box_to_ports.setdefault(flat_idx, set()).add(port_idx)
                 try:
-                    self.ports_display.selected[port_idx] = True
-                    self.selected_ports[self.ports[port_idx]] = True
+                    self.ports_controller.set_selected_by_index(port_idx, True)
                 except Exception:
                     pass
             # assign zone 1 boxes to ports half..end
@@ -160,8 +174,7 @@ class HardwareConfigScreen:
                 self.port_to_box[port_idx] = flat_idx
                 self.box_to_ports.setdefault(flat_idx, set()).add(port_idx)
                 try:
-                    self.ports_display.selected[port_idx] = True
-                    self.selected_ports[self.ports[port_idx]] = True
+                    self.ports_controller.set_selected_by_index(port_idx, True)
                 except Exception:
                     pass
         else:
@@ -170,8 +183,7 @@ class HardwareConfigScreen:
                 self.port_to_box[i] = i
                 self.box_to_ports.setdefault(i, set()).add(i)
                 try:
-                    self.ports_display.selected[i] = True
-                    self.selected_ports[self.ports[i]] = True
+                    self.ports_controller.set_selected_by_index(i, True)
                 except Exception:
                     pass
 
@@ -224,6 +236,12 @@ class HardwareConfigScreen:
             if event.key == pygame.K_ESCAPE:
                 self.close()
                 return 'cancel'
+            # Forward keyboard events to network UI (so input boxes receive KEYDOWN)
+            try:
+                if self.net_display.handle_event(event):
+                    return None
+            except Exception:
+                pass
         # Mouse down: handle clicks, start possible drag
         if event.type == pygame.MOUSEBUTTONDOWN:
             mx, my = event.pos
@@ -239,7 +257,7 @@ class HardwareConfigScreen:
 
             # Capture button
             if self.capture_rect.collidepoint(mx, my):
-                selected_ports = [p for p, v in self.selected_ports.items() if v]
+                selected_ports = self.ports_controller.get_selected_labels()
                 selected_connections = [c for c, v in self.selected_connections.items() if v]
                 # build assignments: port label -> box index or None
                 assignments = {}
@@ -248,24 +266,68 @@ class HardwareConfigScreen:
                 # build reverse map box -> list of port labels
                 box_map = {str(b): [self.ports[p] for p in sorted(list(ps))] for b, ps in self.box_to_ports.items()}
                 cfg = {'ports': selected_ports, 'connections': selected_connections, 'assignments': assignments, 'box_map': box_map}
+                try:
+                    cfg['network_connections'] = self.net_display.get_config()
+                except Exception:
+                    cfg['network_connections'] = []
                 self.close()
                 return ('capture', cfg)
 
-            # Prepare display rects for hit-testing
+            # Prepare display rects for hit-testing (compute same layout as draw/open)
             inner = self.surface_rect.inflate(-self.section_padding * 2, -self.section_padding * 2)
             ports_rect = pygame.Rect(inner.left + 10, inner.top + 48, inner.w - 20, self._ports_display_h)
-            self.ports_display.set_rect(ports_rect)
-            partials_rect = pygame.Rect(inner.left + 10, ports_rect.bottom + 12, inner.w - 20, max(56, self.capture_rect.y - ports_rect.bottom - 18))
+            self.ports_controller.set_rect(ports_rect)
+
+            # Compute partials area height using same logic as in open()/draw()
+            cap_top = self.capture_rect.y
+            available_space = max(24, cap_top - ports_rect.bottom - 18)
+
+            minimal_needed = 0
+            pz = getattr(self.partials_display, 'zone_boxes', None) or []
+            if pz and self.font:
+                line_h = int(self.font.get_height())
+                title_h = line_h + 4
+                content_h = max(12, line_h * 2 + 4)
+                for z in pz:
+                    n = max(1, len(z))
+                    zone_h = title_h + 6 + n * content_h + (n - 1) * self.partials_display.padding + 8
+                    minimal_needed = max(minimal_needed, zone_h)
+            else:
+                if self.font:
+                    line_h = int(self.font.get_height())
+                    content_h = max(12, line_h * 2 + 4)
+                else:
+                    content_h = self.partials_display.box_h
+                per_row = max(1, (inner.w + self.partials_display.padding) // (self.partials_display.box_w + self.partials_display.padding))
+                rows = (max(1, len(self.partials_display.boxes)) + per_row - 1) // per_row
+                minimal_needed = rows * content_h + max(0, rows - 1) * self.partials_display.padding + self.partials_display.padding * 2
+
+            chosen_h = min(available_space, max(minimal_needed, 32))
+            partials_rect = pygame.Rect(inner.left + 10, ports_rect.bottom + 12, inner.w - 20, chosen_h)
             self.partials_display.set_rect(partials_rect)
+
+            # Pre-compute network rect and allow early routing of events
+            pad = self.net_display.padding
+            header_h = int(self.font.get_height()) + 6
+            rows = self.net_display.rows_count
+            row_h = self.net_display.box_h
+            desired_net_h = self.net_display.desired_height()
+            avail_net = max(32, self.capture_rect.y - partials_rect.bottom - 12)
+            net_h = min(desired_net_h, avail_net)
+            net_rect = pygame.Rect(inner.left + 10, partials_rect.bottom + 12, inner.w - 20, net_h)
+            self.net_display.set_rect(net_rect)
+            if net_rect.collidepoint(mx, my):
+                if self.net_display.handle_event(event):
+                    return None
 
             # Check for direct click on a cable (line between port and partial dot)
             # find nearest mapping whose segment is within threshold
             best = None
             # threshold based on dot sizes, with extra tolerance
-            thresh = max(12, getattr(self.ports_display, 'dot_radius', 8) + getattr(self.partials_display, 'dot_radius', 6) + 4)
+            thresh = max(12, getattr(self.ports_controller.display, 'dot_radius', 8) + getattr(self.partials_display, 'dot_radius', 6) + 4)
             thresh2 = thresh * thresh
             for p_map, b_map in list(self.port_to_box.items()):
-                p_center = self.ports_display.get_dot_center(p_map)
+                p_center = self.ports_controller.get_dot_center(p_map)
                 b_center = self.partials_display.get_dot_center(b_map)
                 if not p_center or not b_center:
                     continue
@@ -286,14 +348,13 @@ class HardwareConfigScreen:
                             if len(s) == 0:
                                 self.box_to_ports.pop(old, None)
                     try:
-                        self.ports_display.selected[p_map] = False
-                        self.selected_ports[self.ports[p_map]] = False
+                        self.ports_controller.set_selected_by_index(p_map, False)
                     except Exception:
                         pass
                 return None
 
             # Hit-test for drag start on a port or partial dot
-            p_idx = self.ports_display.get_dot_index_at((mx, my))
+            p_idx = self.ports_controller.get_dot_index_at((mx, my))
             b_idx = self.partials_display.get_dot_index_at((mx, my))
             if p_idx is not None:
                 self._dragging = True
@@ -311,22 +372,23 @@ class HardwareConfigScreen:
                 return None
 
             # If not starting a drag, fall back to click handling
-            toggled = self.ports_display.handle_event(event)
+            toggled = self.ports_controller.handle_event(event)
             if toggled is not None:
-                label = self.ports[toggled]
-                self.selected_ports[label] = not self.selected_ports.get(label, False)
                 return None
 
-            # Small gap between sections; start connections below ports display
-            y = partials_rect.bottom + 12
-            checkbox_size = 18
-            for c in self.connections:
-                rect = pygame.Rect(inner.left + 20, y, checkbox_size, checkbox_size)
-                label_rect = pygame.Rect(rect.right + 8, y, 200, checkbox_size)
-                if rect.collidepoint(mx, my) or label_rect.collidepoint(mx, my):
-                    self.selected_connections[c] = not self.selected_connections[c]
-                    return None
-                y += 36
+            # Network connections UI (forward clicks to component)
+            cap_top = self.capture_rect.y
+            pad = self.net_display.padding
+            header_h = int(self.font.get_height()) + 6
+            rows = self.net_display.rows_count
+            row_h = self.net_display.box_h
+            desired_net_h = self.net_display.desired_height()
+            avail_net = max(32, cap_top - partials_rect.bottom - 12)
+            net_h = min(desired_net_h, avail_net)
+            net_rect = pygame.Rect(inner.left + 10, partials_rect.bottom + 12, inner.w - 20, net_h)
+            self.net_display.set_rect(net_rect)
+            if self.net_display.handle_event(event):
+                return None
 
         # Mouse move: update drag position
         if event.type == pygame.MOUSEMOTION and self._dragging:
@@ -340,10 +402,10 @@ class HardwareConfigScreen:
             # hit-test targets
             inner = self.surface_rect.inflate(-self.section_padding * 2, -self.section_padding * 2)
             ports_rect = pygame.Rect(inner.left + 10, inner.top + 48, inner.w - 20, self._ports_display_h)
-            self.ports_display.set_rect(ports_rect)
+            self.ports_controller.set_rect(ports_rect)
             partials_rect = pygame.Rect(inner.left + 10, ports_rect.bottom + 12, inner.w - 20, max(56, self.capture_rect.y - ports_rect.bottom - 36))
             self.partials_display.set_rect(partials_rect)
-            target_p = self.ports_display.get_dot_index_at((mx, my))
+            target_p = self.ports_controller.get_dot_index_at((mx, my))
             target_b = self.partials_display.get_dot_index_at((mx, my))
 
             # Helper closures
@@ -374,8 +436,7 @@ class HardwareConfigScreen:
                 self.port_to_box[port_idx] = box_idx
                 self.box_to_ports.setdefault(box_idx, set()).add(port_idx)
                 try:
-                    self.ports_display.selected[port_idx] = True
-                    self.selected_ports[self.ports[port_idx]] = True
+                    self.ports_controller.set_selected_by_index(port_idx, True)
                 except Exception:
                     pass
 
@@ -388,8 +449,7 @@ class HardwareConfigScreen:
                         if len(s) == 0:
                             self.box_to_ports.pop(old, None)
                 try:
-                    self.ports_display.selected[port_idx] = False
-                    self.selected_ports[self.ports[port_idx]] = False
+                    self.ports_controller.set_selected_by_index(port_idx, False)
                 except Exception:
                     pass
 
@@ -509,14 +569,15 @@ class HardwareConfigScreen:
 
         # Ports display (dots)
         ports_rect = pygame.Rect(inner.left + 10, header_y + 24, inner.w - 20, self._ports_display_h)
-        self.ports_display.set_rect(ports_rect)
-        self.ports_display.draw(screen)
+        self.ports_controller.set_rect(ports_rect)
+        self.ports_controller.draw(screen)
 
         # Partials display (small boxes) under ports
         cap_top = self.capture_rect.y
-        available_space = max(24, cap_top - ports_rect.bottom - 36)
+        # Use same spacing as in handle_event/open() so hit-testing matches drawing
+        available_space = max(24, cap_top - ports_rect.bottom - 18)
 
-        # estimate minimal needed height similar to open()
+        # estimate minimal needed height similar to open()/handle_event()
         minimal_needed = 0
         pz = getattr(self.partials_display, 'zone_boxes', None) or []
         if pz and self.font:
@@ -526,7 +587,8 @@ class HardwareConfigScreen:
             for z in pz:
                 n = max(1, len(z))
                 zone_h = title_h + 6 + n * content_h + (n - 1) * self.partials_display.padding + 8
-                minimal_needed = max(minimal_needed, zone_h)
+                extra_padding = 10
+                minimal_needed = max(minimal_needed, zone_h) + extra_padding
         else:
             if self.font:
                 line_h = int(self.font.get_height())
@@ -545,7 +607,7 @@ class HardwareConfigScreen:
         # Draw connection cables (green) for each mapped port -> box
         for p_idx, b_idx in list(self.port_to_box.items()):
             try:
-                p_center = self.ports_display.get_dot_center(p_idx)
+                p_center = self.ports_controller.get_dot_center(p_idx)
                 b_center = self.partials_display.get_dot_center(b_idx)
                 if p_center and b_center:
                     pygame.draw.line(screen, (20, 160, 20), p_center, b_center, 6)
@@ -559,7 +621,7 @@ class HardwareConfigScreen:
         if self._dragging and self._drag_from_type is not None:
             try:
                 if self._drag_from_type == 'port':
-                    src = self.ports_display.get_dot_center(self._drag_from_index)
+                    src = self.ports_controller.get_dot_center(self._drag_from_index)
                 else:
                     src = self.partials_display.get_dot_center(self._drag_from_index)
                 dst = self._drag_current_pos
@@ -578,22 +640,18 @@ class HardwareConfigScreen:
         except Exception:
             pass
 
-        # Connections header and checkboxes (below partials display)
-        y = partials_rect.bottom + 12
-        ch = self.font.render("Connections", True, (0, 0, 0))
-        screen.blit(ch, (inner.left + 10, y))
-        y += 24
-        checkbox_size = 18
-        for c in self.connections:
-            rect = pygame.Rect(inner.left + 20, y, checkbox_size, checkbox_size)
-            pygame.draw.rect(screen, (255, 255, 255), rect)
-            pygame.draw.rect(screen, (0, 0, 0), rect, 2)
-            if self.selected_connections[c]:
-                pygame.draw.line(screen, (0, 120, 0), (rect.left + 3, rect.centery), (rect.centerx, rect.bottom - 3), 3)
-                pygame.draw.line(screen, (0, 120, 0), (rect.centerx, rect.bottom - 3), (rect.right - 3, rect.top + 3), 3)
-            label = self.font.render(c, True, (0, 0, 0))
-            screen.blit(label, (rect.right + 8, y - 2))
-            y += 36
+        # Network connections display (two QSFP rows) below partials display
+        cap_top = self.capture_rect.y
+        pad = self.net_display.padding
+        header_h = int(self.font.get_height()) + 6
+        rows = self.net_display.rows_count
+        row_h = self.net_display.box_h
+        desired_net_h = self.net_display.desired_height()
+        avail_net = max(32, cap_top - partials_rect.bottom - 12)
+        net_h = min(desired_net_h, avail_net)
+        net_rect = pygame.Rect(inner.left + 10, partials_rect.bottom + 12, inner.w - 20, net_h)
+        self.net_display.set_rect(net_rect)
+        self.net_display.draw(screen)
 
         # Capture button
         pygame.draw.rect(screen, (0, 120, 200), self.capture_rect, border_radius=6)

@@ -6,3 +6,28 @@ assistanceJSONs/completeOptions.json
 assistanceJSONs/filteredOptions.json
 assistanceJSONs/filters.json
 context.md
+
+# Vue / Node
+UI_vue/node_modules/
+UI_vue/dist/
+UI_vue/.vite/
+UI_vue/.env
+UI_vue/.env.local
+UI_vue/package-lock.json
+UI_vue/yarn.lock
+UI_vue/pnpm-lock.yaml
+
+# Backend
+backend/.venv/
+backend/assistanceJSONs/completeOptions.json
+backend/assistanceJSONs/filteredOptions.json
+backend/assistanceJSONs/partialOptions.json
+backend/assistanceJSONs/filters.json
+backend/assistanceJSONs/usrpInfo.json
+
+
+# Logs and misc
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/

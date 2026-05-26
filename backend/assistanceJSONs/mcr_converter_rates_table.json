@@ -1,0 +1,730 @@
+[
+    {
+        "mcr_mhz": 125.0,
+        "rfdc_converter_rates_ghz": [
+            1.0
+        ]
+    },
+    {
+        "mcr_mhz": 128.0,
+        "rfdc_converter_rates_ghz": [
+            1.024
+        ]
+    },
+    {
+        "mcr_mhz": 133.12,
+        "rfdc_converter_rates_ghz": [
+            1.06496
+        ]
+    },
+    {
+        "mcr_mhz": 150.0,
+        "rfdc_converter_rates_ghz": [
+            1.2
+        ]
+    },
+    {
+        "mcr_mhz": 153.6,
+        "rfdc_converter_rates_ghz": [
+            1.2288
+        ]
+    },
+    {
+        "mcr_mhz": 160.0,
+        "rfdc_converter_rates_ghz": [
+            1.28
+        ]
+    },
+    {
+        "mcr_mhz": 163.84,
+        "rfdc_converter_rates_ghz": [
+            1.31072
+        ]
+    },
+    {
+        "mcr_mhz": 184.32,
+        "rfdc_converter_rates_ghz": [
+            1.47456
+        ]
+    },
+    {
+        "mcr_mhz": 199.68,
+        "rfdc_converter_rates_ghz": [
+            1.59744
+        ]
+    },
+    {
+        "mcr_mhz": 200.0,
+        "rfdc_converter_rates_ghz": [
+            1.6
+        ]
+    },
+    {
+        "mcr_mhz": 204.8,
+        "rfdc_converter_rates_ghz": [
+            1.6384
+        ]
+    },
+    {
+        "mcr_mhz": 240.0,
+        "rfdc_converter_rates_ghz": [
+            1.92
+        ]
+    },
+    {
+        "mcr_mhz": 245.76,
+        "rfdc_converter_rates_ghz": [
+            1.96608
+        ]
+    },
+    {
+        "mcr_mhz": 250.0,
+        "rfdc_converter_rates_ghz": [
+            2.0,
+            1.0
+        ]
+    },
+    {
+        "mcr_mhz": 256.0,
+        "rfdc_converter_rates_ghz": [
+            2.048,
+            1.024
+        ]
+    },
+    {
+        "mcr_mhz": 266.24,
+        "rfdc_converter_rates_ghz": [
+            2.12992,
+            1.06496
+        ]
+    },
+    {
+        "mcr_mhz": 300.0,
+        "rfdc_converter_rates_ghz": [
+            2.4,
+            1.2
+        ]
+    },
+    {
+        "mcr_mhz": 307.2,
+        "rfdc_converter_rates_ghz": [
+            2.4576,
+            1.2288
+        ]
+    },
+    {
+        "mcr_mhz": 320.0,
+        "rfdc_converter_rates_ghz": [
+            2.56,
+            1.28
+        ]
+    },
+    {
+        "mcr_mhz": 327.68,
+        "rfdc_converter_rates_ghz": [
+            2.62144,
+            1.31072
+        ]
+    },
+    {
+        "mcr_mhz": 360.0,
+        "rfdc_converter_rates_ghz": [
+            2.88,
+            1.44
+        ]
+    },
+    {
+        "mcr_mhz": 368.64,
+        "rfdc_converter_rates_ghz": [
+            1.47456,
+            2.94912
+        ]
+    },
+    {
+        "mcr_mhz": 375.0,
+        "rfdc_converter_rates_ghz": [
+            3.0,
+            1.5
+        ]
+    },
+    {
+        "mcr_mhz": 384.0,
+        "rfdc_converter_rates_ghz": [
+            1.536,
+            3.072
+        ]
+    },
+    {
+        "mcr_mhz": 399.36,
+        "rfdc_converter_rates_ghz": [
+            3.19488,
+            1.59744
+        ]
+    },
+    {
+        "mcr_mhz": 400.0,
+        "rfdc_converter_rates_ghz": [
+            3.2,
+            1.6
+        ]
+    },
+    {
+        "mcr_mhz": 409.6,
+        "rfdc_converter_rates_ghz": [
+            3.2768,
+            1.6384
+        ]
+    },
+    {
+        "mcr_mhz": 450.0,
+        "rfdc_converter_rates_ghz": [
+            1.8,
+            3.6
+        ]
+    },
+    {
+        "mcr_mhz": 460.8,
+        "rfdc_converter_rates_ghz": [
+            1.8432,
+            3.6864
+        ]
+    },
+    {
+        "mcr_mhz": 480.0,
+        "rfdc_converter_rates_ghz": [
+            3.84,
+            1.92
+        ]
+    },
+    {
+        "mcr_mhz": 491.52,
+        "rfdc_converter_rates_ghz": [
+            3.93216,
+            1.96608
+        ]
+    },
+    {
+        "mcr_mhz": 500.0,
+        "rfdc_converter_rates_ghz": [
+            4.0,
+            2.0,
+            1.0
+        ]
+    },
+    {
+        "mcr_mhz": 512.0,
+        "rfdc_converter_rates_ghz": [
+            1.024,
+            2.048,
+            4.096
+        ]
+    },
+    {
+        "mcr_mhz": 532.48,
+        "rfdc_converter_rates_ghz": [
+            1.06496,
+            2.12992
+        ]
+    },
+    {
+        "mcr_mhz": 552.96,
+        "rfdc_converter_rates_ghz": [
+            2.21184,
+            1.10592
+        ]
+    },
+    {
+        "mcr_mhz": 599.04,
+        "rfdc_converter_rates_ghz": [
+            1.19808,
+            2.39616
+        ]
+    },
+    {
+        "mcr_mhz": 600.0,
+        "rfdc_converter_rates_ghz": [
+            1.2,
+            2.4
+        ]
+    },
+    {
+        "mcr_mhz": 614.4,
+        "rfdc_converter_rates_ghz": [
+            1.2288,
+            2.4576
+        ]
+    },
+    {
+        "mcr_mhz": 625.0,
+        "rfdc_converter_rates_ghz": [
+            1.25,
+            2.5
+        ]
+    },
+    {
+        "mcr_mhz": 640.0,
+        "rfdc_converter_rates_ghz": [
+            2.56,
+            1.28
+        ]
+    },
+    {
+        "mcr_mhz": 655.36,
+        "rfdc_converter_rates_ghz": [
+            1.31072,
+            2.62144
+        ]
+    },
+    {
+        "mcr_mhz": 665.6,
+        "rfdc_converter_rates_ghz": [
+            1.3312,
+            2.6624
+        ]
+    },
+    {
+        "mcr_mhz": 720.0,
+        "rfdc_converter_rates_ghz": [
+            1.44,
+            2.88
+        ]
+    },
+    {
+        "mcr_mhz": 737.28,
+        "rfdc_converter_rates_ghz": [
+            1.47456,
+            2.94912
+        ]
+    },
+    {
+        "mcr_mhz": 750.0,
+        "rfdc_converter_rates_ghz": [
+            1.5,
+            3.0
+        ]
+    },
+    {
+        "mcr_mhz": 768.0,
+        "rfdc_converter_rates_ghz": [
+            1.536,
+            3.072
+        ]
+    },
+    {
+        "mcr_mhz": 798.72,
+        "rfdc_converter_rates_ghz": [
+            3.19488,
+            1.59744
+        ]
+    },
+    {
+        "mcr_mhz": 800.0,
+        "rfdc_converter_rates_ghz": [
+            1.6,
+            3.2
+        ]
+    },
+    {
+        "mcr_mhz": 819.2,
+        "rfdc_converter_rates_ghz": [
+            3.2768,
+            1.6384
+        ]
+    },
+    {
+        "mcr_mhz": 840.0,
+        "rfdc_converter_rates_ghz": [
+            1.68,
+            3.36
+        ]
+    },
+    {
+        "mcr_mhz": 860.16,
+        "rfdc_converter_rates_ghz": [
+            3.44064,
+            1.72032
+        ]
+    },
+    {
+        "mcr_mhz": 875.0,
+        "rfdc_converter_rates_ghz": [
+            3.5,
+            1.75
+        ]
+    },
+    {
+        "mcr_mhz": 896.0,
+        "rfdc_converter_rates_ghz": [
+            3.584,
+            1.792
+        ]
+    },
+    {
+        "mcr_mhz": 900.0,
+        "rfdc_converter_rates_ghz": [
+            1.8,
+            3.6
+        ]
+    },
+    {
+        "mcr_mhz": 921.6,
+        "rfdc_converter_rates_ghz": [
+            1.8432,
+            3.6864
+        ]
+    },
+    {
+        "mcr_mhz": 931.84,
+        "rfdc_converter_rates_ghz": [
+            1.86368,
+            3.72736
+        ]
+    },
+    {
+        "mcr_mhz": 960.0,
+        "rfdc_converter_rates_ghz": [
+            3.84,
+            1.92
+        ]
+    },
+    {
+        "mcr_mhz": 983.04,
+        "rfdc_converter_rates_ghz": [
+            1.96608,
+            3.93216
+        ]
+    },
+    {
+        "mcr_mhz": 998.4,
+        "rfdc_converter_rates_ghz": [
+            3.9936,
+            1.9968
+        ]
+    },
+    {
+        "mcr_mhz": 1000.0,
+        "rfdc_converter_rates_ghz": [
+            4.0,
+            2.0
+        ]
+    },
+    {
+        "mcr_mhz": 1024.0,
+        "rfdc_converter_rates_ghz": [
+            4.096,
+            2.048
+        ]
+    },
+    {
+        "mcr_mhz": 1050.0,
+        "rfdc_converter_rates_ghz": [
+            2.1
+        ]
+    },
+    {
+        "mcr_mhz": 1064.96,
+        "rfdc_converter_rates_ghz": [
+            2.12992
+        ]
+    },
+    {
+        "mcr_mhz": 1075.2,
+        "rfdc_converter_rates_ghz": [
+            2.1504
+        ]
+    },
+    {
+        "mcr_mhz": 1080.0,
+        "rfdc_converter_rates_ghz": [
+            2.16
+        ]
+    },
+    {
+        "mcr_mhz": 1105.92,
+        "rfdc_converter_rates_ghz": [
+            2.21184
+        ]
+    },
+    {
+        "mcr_mhz": 1120.0,
+        "rfdc_converter_rates_ghz": [
+            2.24
+        ]
+    },
+    {
+        "mcr_mhz": 1125.0,
+        "rfdc_converter_rates_ghz": [
+            2.25
+        ]
+    },
+    {
+        "mcr_mhz": 1146.88,
+        "rfdc_converter_rates_ghz": [
+            2.29376
+        ]
+    },
+    {
+        "mcr_mhz": 1152.0,
+        "rfdc_converter_rates_ghz": [
+            2.304
+        ]
+    },
+    {
+        "mcr_mhz": 1198.08,
+        "rfdc_converter_rates_ghz": [
+            2.39616
+        ]
+    },
+    {
+        "mcr_mhz": 1200.0,
+        "rfdc_converter_rates_ghz": [
+            2.4
+        ]
+    },
+    {
+        "mcr_mhz": 1228.8,
+        "rfdc_converter_rates_ghz": [
+            2.4576
+        ]
+    },
+    {
+        "mcr_mhz": 1250.0,
+        "rfdc_converter_rates_ghz": [
+            2.5
+        ]
+    },
+    {
+        "mcr_mhz": 1280.0,
+        "rfdc_converter_rates_ghz": [
+            2.56
+        ]
+    },
+    {
+        "mcr_mhz": 1290.24,
+        "rfdc_converter_rates_ghz": [
+            2.58048
+        ]
+    },
+    {
+        "mcr_mhz": 1310.72,
+        "rfdc_converter_rates_ghz": [
+            2.62144
+        ]
+    },
+    {
+        "mcr_mhz": 1331.2,
+        "rfdc_converter_rates_ghz": [
+            2.6624
+        ]
+    },
+    {
+        "mcr_mhz": 1350.0,
+        "rfdc_converter_rates_ghz": [
+            2.7
+        ]
+    },
+    {
+        "mcr_mhz": 1382.4,
+        "rfdc_converter_rates_ghz": [
+            2.7648
+        ]
+    },
+    {
+        "mcr_mhz": 1397.76,
+        "rfdc_converter_rates_ghz": [
+            2.79552
+        ]
+    },
+    {
+        "mcr_mhz": 1400.0,
+        "rfdc_converter_rates_ghz": [
+            2.8
+        ]
+    },
+    {
+        "mcr_mhz": 1433.6,
+        "rfdc_converter_rates_ghz": [
+            2.8672
+        ]
+    },
+    {
+        "mcr_mhz": 1440.0,
+        "rfdc_converter_rates_ghz": [
+            2.88
+        ]
+    },
+    {
+        "mcr_mhz": 1474.56,
+        "rfdc_converter_rates_ghz": [
+            2.94912
+        ]
+    },
+    {
+        "mcr_mhz": 1500.0,
+        "rfdc_converter_rates_ghz": [
+            3.0
+        ]
+    },
+    {
+        "mcr_mhz": 1536.0,
+        "rfdc_converter_rates_ghz": [
+            3.072
+        ]
+    },
+    {
+        "mcr_mhz": 1600.0,
+        "rfdc_converter_rates_ghz": [
+            3.2
+        ]
+    },
+    {
+        "mcr_mhz": 1625.0,
+        "rfdc_converter_rates_ghz": [
+            3.25
+        ]
+    },
+    {
+        "mcr_mhz": 1638.4,
+        "rfdc_converter_rates_ghz": [
+            3.2768
+        ]
+    },
+    {
+        "mcr_mhz": 1650.0,
+        "rfdc_converter_rates_ghz": [
+            3.3
+        ]
+    },
+    {
+        "mcr_mhz": 1658.88,
+        "rfdc_converter_rates_ghz": [
+            3.31776
+        ]
+    },
+    {
+        "mcr_mhz": 1664.0,
+        "rfdc_converter_rates_ghz": [
+            3.328
+        ]
+    },
+    {
+        "mcr_mhz": 1680.0,
+        "rfdc_converter_rates_ghz": [
+            3.36
+        ]
+    },
+    {
+        "mcr_mhz": 1689.6,
+        "rfdc_converter_rates_ghz": [
+            3.3792
+        ]
+    },
+    {
+        "mcr_mhz": 1720.32,
+        "rfdc_converter_rates_ghz": [
+            3.44064
+        ]
+    },
+    {
+        "mcr_mhz": 1730.56,
+        "rfdc_converter_rates_ghz": [
+            3.46112
+        ]
+    },
+    {
+        "mcr_mhz": 1750.0,
+        "rfdc_converter_rates_ghz": [
+            3.5
+        ]
+    },
+    {
+        "mcr_mhz": 1760.0,
+        "rfdc_converter_rates_ghz": [
+            3.52
+        ]
+    },
+    {
+        "mcr_mhz": 1792.0,
+        "rfdc_converter_rates_ghz": [
+            3.584
+        ]
+    },
+    {
+        "mcr_mhz": 1797.12,
+        "rfdc_converter_rates_ghz": [
+            3.59424
+        ]
+    },
+    {
+        "mcr_mhz": 1800.0,
+        "rfdc_converter_rates_ghz": [
+            3.6
+        ]
+    },
+    {
+        "mcr_mhz": 1802.24,
+        "rfdc_converter_rates_ghz": [
+            3.60448
+        ]
+    },
+    {
+        "mcr_mhz": 1843.2,
+        "rfdc_converter_rates_ghz": [
+            3.6864
+        ]
+    },
+    {
+        "mcr_mhz": 1863.68,
+        "rfdc_converter_rates_ghz": [
+            3.72736
+        ]
+    },
+    {
+        "mcr_mhz": 1875.0,
+        "rfdc_converter_rates_ghz": [
+            3.75
+        ]
+    },
+    {
+        "mcr_mhz": 1920.0,
+        "rfdc_converter_rates_ghz": [
+            3.84
+        ]
+    },
+    {
+        "mcr_mhz": 1950.0,
+        "rfdc_converter_rates_ghz": [
+            3.9
+        ]
+    },
+    {
+        "mcr_mhz": 1966.08,
+        "rfdc_converter_rates_ghz": [
+            3.93216
+        ]
+    },
+    {
+        "mcr_mhz": 1996.8,
+        "rfdc_converter_rates_ghz": [
+            3.9936
+        ]
+    },
+    {
+        "mcr_mhz": 2000.0,
+        "rfdc_converter_rates_ghz": [
+            4.0
+        ]
+    },
+    {
+        "mcr_mhz": 2027.52,
+        "rfdc_converter_rates_ghz": [
+            4.05504
+        ]
+    },
+    {
+        "mcr_mhz": 2048.0,
+        "rfdc_converter_rates_ghz": [
+            4.096
+        ]
+    }
+]
