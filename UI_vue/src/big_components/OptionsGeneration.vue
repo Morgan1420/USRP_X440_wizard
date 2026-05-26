@@ -17,7 +17,9 @@
 
   <FilterPopUp v-if="showFilter" @save="closeFilterPopUp" @close="closeFilterPopUp" />
 
-  <OptionsScrollArea ref="optionsRef" />
+  <OptionsScrollArea ref="optionsRef" @show="onShowItem" />
+
+  <OptionDetails v-if="showDetails" :option="detailOption" @close="closeDetail" />
 
   <div class="buttons-display">
     <Button label="Continuar amb l'opció seleccionada" variant="primary" @click="onGenerate" />
@@ -33,6 +35,7 @@ import InputBox from '../small_components/InputBox.vue'
 import Button from '../small_components/Button.vue' 
 import FilterPopUp from '../mid_components/FilterPopUp.vue'
 import OptionsScrollArea from '../mid_components/OptionsScrollArea.vue'
+import OptionDetails from './OptionDetails.vue'
 
 const fcMultipliers = [{ label: 'M', value: 1e6 }, { label: 'G', value: 1e9 }]
 
@@ -40,6 +43,8 @@ const fminRef = ref(null)
 const fmaxRef = ref(null)
 const showFilter = ref(false)
 const optionsRef = ref(null)
+const detailOption = ref(null)
+const showDetails = ref(false)
 
 function onGenerate() {
   // Recuperem els valors dels InputBox
@@ -100,6 +105,16 @@ function openFilterPopUp() {
 
 function closeFilterPopUp() {
   showFilter.value = false
+}
+
+function onShowItem(item) {
+  detailOption.value = item
+  showDetails.value = true
+}
+
+function closeDetail() {
+  showDetails.value = false
+  detailOption.value = null
 }
 
 </script>

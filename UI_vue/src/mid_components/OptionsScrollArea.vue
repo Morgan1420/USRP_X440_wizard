@@ -20,7 +20,7 @@
           <div class="title">{{ item.complete_option_id ?? ('Option ' + i) }}</div>
           <div class="range">{{ formatRange(item.f_start, item.f_end) }}</div>
           <div class="chans">chans: {{ item.chans_needed }}</div>
-          <div><button class="show-btn">Mostra</button></div>
+          <div><button class="show-btn" @click.stop="showDetails(item)">Mostra</button></div>
         </div>
       </div>
     </div>
@@ -63,6 +63,8 @@ async function fetchOptions() {
 
 function select(i) { selectedIndex.value = i }
 function onStartCapture() { if (selectedIndex.value == null) return; emit('start-capture', items.value[selectedIndex.value]) }
+
+function showDetails(item) { emit('show', item) }
 
 // expose refresh for parent
 function refresh() { fetchOptions() }
