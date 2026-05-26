@@ -1,4 +1,6 @@
 <template>  
+<div class="OptionsGeneration">
+
   <div class="inputs-display">
     <InputBox ref="fminRef" label="F_min:" placeholder="500" :multipliers="fcMultipliers" unit="Hz" :default-multiplier-index="0" />
     <InputBox ref="fmaxRef" label="F_max:" placeholder="750" :multipliers="fcMultipliers" unit="Hz" :default-multiplier-index="0" />
@@ -15,6 +17,14 @@
 
   <FilterPopUp v-if="showFilter" @save="closeFilterPopUp" @close="closeFilterPopUp" />
 
+  <OptionsScrollArea ref="optionsRef" />
+
+  <div class="buttons-display">
+    <Button label="Continuar amb l'opció seleccionada" variant="primary" @click="onGenerate" />
+  </div>
+
+</div>
+
 </template>
 
 <script setup>
@@ -22,13 +32,14 @@ import { ref } from 'vue'
 import InputBox from '../small_components/InputBox.vue'
 import Button from '../small_components/Button.vue' 
 import FilterPopUp from '../mid_components/FilterPopUp.vue'
-import OptionsScrollArea from '../small_components/OptionsScrollArea.vue'
+import OptionsScrollArea from '../mid_components/OptionsScrollArea.vue'
 
 const fcMultipliers = [{ label: 'M', value: 1e6 }, { label: 'G', value: 1e9 }]
 
 const fminRef = ref(null)
 const fmaxRef = ref(null)
 const showFilter = ref(false)
+const optionsRef = ref(null)
 
 function onGenerate() {
   // Recuperem els valors dels InputBox
@@ -66,6 +77,9 @@ function onGenerate() {
     .then(data => {
       if (!data.ok) {
         alert('Error: ' + (data.message || 'Generation failed'))
+      } else {
+        // refresh options list after successful generation
+        try { optionsRef.value?.refresh?.() } catch (e) { console.error('refresh failed', e) }
       }
     })
     .catch(e => {
@@ -91,6 +105,15 @@ function closeFilterPopUp() {
 </script>
 
 <style scoped>
+
+.OptionsGeneration {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+}
+
 .inputs-display{
   width: 70%;
   padding-inline: 15%;

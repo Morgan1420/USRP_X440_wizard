@@ -12,7 +12,7 @@ import { ref } from 'vue'
 import InputBox from './small_components/InputBox.vue'
 import Button from './small_components/Button.vue'
 import FilterPopUp from './mid_components/FilterPopUp.vue'
-import OptionsScrollArea from './small_components/OptionsScrollArea.vue'
+import OptionsScrollArea from './mid_components/OptionsScrollArea.vue'
 
 import OptionsGeneration from './big_components/OptionsGeneration.vue'
 

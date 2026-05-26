@@ -1,5 +1,5 @@
 <template>
-  <button :class="['btn', variant]" @click="$emit('click')">
+  <button :class="['btn', variant]" @click="handleClick">
     {{ label }}
   </button>
 </template>
@@ -9,6 +9,12 @@ const props = defineProps({
   label: { type: String, default: '' },
   variant: { type: String, default: 'primary' }
 })
+const emit = defineEmits(['click'])
+
+function handleClick(e) {
+  console.log('Button clicked:', props.label)
+  emit('click', e)
+}
 </script>
 
 <style scoped>
@@ -20,6 +26,10 @@ const props = defineProps({
     
     font-size: 1.2rem;
     font-weight:600; 
+}
+.btn:hover { 
+  transform: scale(1.05);
+  transition: transform 0.1s ease-in-out;
 }
 
 .btn.primary { 
