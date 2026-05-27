@@ -1,9 +1,9 @@
 <template>
+  <h4>Network</h4>
   <div class="network-grid">
     <div class="header-row">
       <div class="col name">Connection</div>
-      <div class="col ip">IP Address (Primary)</div>
-      <div class="col ip">IP Address (Secondary)</div>
+      <div class="col ip">IP Address </div>
       <div class="col connected">Connected</div>
       <div class="col validated">Validated</div>
     </div>
@@ -11,7 +11,6 @@
     <div class="row" v-for="(r, i) in rows" :key="i">
       <div class="col name">{{ r.name }}</div>
       <div class="col ip"><input v-model="r.ipA" type="text" placeholder="0.0.0.0" /></div>
-      <div class="col ip"><input v-model="r.ipB" type="text" placeholder="0.0.0.0" /></div>
       <div class="col connected"><button :class="{on:r.connected}" @click="toggleConnected(i)">{{ r.connected ? 'Yes' : 'No' }}</button></div>
       <div class="col validated"> <span :class="{ok: r.validated}">{{ r.validated ? 'OK' : '-' }}</span> </div>
     </div>
@@ -53,8 +52,28 @@ function getConfig(){
 
 <style scoped>
 .network-grid{ display:flex; flex-direction:column; gap:8px }
-.header-row, .row{ display:grid; grid-template-columns:160px 1fr 1fr 110px 110px; gap:8px; align-items:center }
-.col.name{ font-weight:600 }
+.header-row, .row{ 
+  display:flex; 
+  justify-content:space-between; 
+  align-items:center;
+  gap:8px; 
+  align-items:center 
+}
+.col.name{ 
+  width: 10%;
+  font-weight:600;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  justify-content:center;
+}
+.col.ip{ width: 30%; }
+.col.connected,.col.validated{ 
+  width: 20%;
+  display:flex;
+  justify-content:center;
+}
+
 .row input{ width:100%; padding:6px; border:1px solid #ccc; border-radius:4px }
 .connected button{ padding:6px 8px; border-radius:6px }
 .connected button.on{ background:#2b80ff; color:white }

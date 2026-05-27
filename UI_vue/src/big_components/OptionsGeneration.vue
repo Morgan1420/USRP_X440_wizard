@@ -56,7 +56,7 @@ function onContinue() {
   }catch(e){ /* ignore */ }
 
   if (!option) {
-    alert('Select an option first: click an item row or press "Mostra" to open details.')
+    alert('Cal seleccionar una opció primer: fes clic en una fila o prem "Mostra" per obrir els detalls.')
     return
   }
   emit('continue', option)
@@ -69,19 +69,19 @@ function onGenerate() {
 
   // Validem els valors
   if (fmin == null || fmax == null) {
-    alert('Error: Please enter valid numeric values.')
+    alert('Error: Cal introduir valors vàlids per F_min i F_max.')
     return
   }
   if (fmin > fmax) {
-    alert('Error: Min value must be <= max value.')
+    alert('Error: El valor mínim ha de ser <= al valor màxim.')
     return
   }
   if (fmax > 4e9) {
-    alert('Error: Max value must be <= 4 GHz.')
+    alert('Error: El valor màxim ha de ser <= a 4 GHz.')
     return
   }
   if (fmin < 0 || fmax < 0) {
-    alert('Error: Min value must be non-negative.')
+    alert('Error: El valor mínim ha de ser no negatiu.')
     return
   }
 
@@ -97,7 +97,7 @@ function onGenerate() {
     .then(res => res.json())
     .then(data => {
       if (!data.ok) {
-        alert('Error: ' + (data.message || 'Generation failed'))
+        alert('Error: ' + (data.message || 'Generació fallida'))
       } else {
         // refresh options list after successful generation
         try { optionsRef.value?.refresh?.() } catch (e) { console.error('refresh failed', e) }
@@ -105,11 +105,11 @@ function onGenerate() {
     })
     .catch(e => {
       console.error(e)
-      alert('Error: Generation failed')
+      alert('Error: Generació fallida')
     })
   }catch(e) {
     console.error(e)
-    alert('Error: Generation failed')
+    alert('Error: Generació fallida')
   }
   
   

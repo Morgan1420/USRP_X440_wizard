@@ -42,11 +42,11 @@ async function onOk() {
 
   // Validem els valors (per exemple, min ha de ser <= max)
   if ((minVal != null && minVal < 0) || (maxVal != null && maxVal < 0)) {
-    alert('Error: Values must be non-negative.')
+    alert('Error: Els valors han de ser no negatius.')
     return
   }
   if (minVal != null && maxVal != null && minVal > maxVal) {
-    alert('Error: Min value must be <= max value.')
+    alert('Error: El valor mínim ha de ser <= al valor màxim.')
     return
   }
   
@@ -66,7 +66,7 @@ async function onOk() {
     if (!res.ok) {
       let txt = ''
       try { txt = await res.text() } catch (e) { txt = String(res.status) }
-      alert('Failed saving filters: ' + txt)
+      alert('Error guardant filtres: ' + txt)
       return
     }
 
@@ -78,10 +78,10 @@ async function onOk() {
       return
     }
 
-    alert('Failed saving filters: ' + (data && data.message ? data.message : 'unknown error'))
+    alert('Error guardant filtres: ' + (data && data.message ? data.message : 'unknown error'))
   } catch (e) {
     console.error('Error posting filters', e)
-    alert('Error connecting to backend; ensure it is running on http://localhost:5000')
+    alert('Error connectant al backend; assegura\'t que està en execució a http://localhost:5000')
   }
 }
 

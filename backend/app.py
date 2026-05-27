@@ -109,3 +109,4 @@ def get_options():
 if __name__ == '__main__':
     # Execute el backend amb Flask al localhost al port 5000
     app.run(host='127.0.0.1', port=5000)
+
