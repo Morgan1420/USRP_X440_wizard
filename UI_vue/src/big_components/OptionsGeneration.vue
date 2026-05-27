@@ -22,7 +22,7 @@
   <OptionDetails v-if="showDetails" :option="detailOption" @close="closeDetail" />
 
   <div class="buttons-display">
-    <Button label="Continuar amb l'opció seleccionada" variant="primary" @click="onGenerate" />
+    <Button label="Continuar amb l'opció seleccionada" variant="primary" @click="onContinue" />
   </div>
 
 </div>
@@ -45,6 +45,22 @@ const showFilter = ref(false)
 const optionsRef = ref(null)
 const detailOption = ref(null)
 const showDetails = ref(false)
+const emit = defineEmits(['continue'])
+
+function onContinue() {
+  // Prefer the option shown in the detail modal, otherwise use the selected row in the list
+  let option = detailOption.value
+  try{
+    const sel = optionsRef.value?.getSelectedItem?.()
+    if (!option && sel) option = sel
+  }catch(e){ /* ignore */ }
+
+  if (!option) {
+    alert('Select an option first: click an item row or press "Mostra" to open details.')
+    return
+  }
+  emit('continue', option)
+}
 
 function onGenerate() {
   // Recuperem els valors dels InputBox

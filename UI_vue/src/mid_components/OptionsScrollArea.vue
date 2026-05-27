@@ -16,11 +16,11 @@
       <div v-if="loading" class="loading">Loading...</div>
       <div v-else>
         <div v-if="items.length === 0" class="empty">No options available</div>
-        <div v-for="(item, i) in items" :key="i" :class="['item', {selected: i === selectedIndex}]" @click="select(i)">
+        <div v-for="(item, i) in items" :key="i" :class="['item', {selected: i === selectedIndex} ]" @click="select(i)">
           <div class="title">{{ item.complete_option_id ?? ('Option ' + i) }}</div>
           <div class="range">{{ formatRange(item.f_start, item.f_end) }}</div>
           <div class="chans">chans: {{ item.chans_needed }}</div>
-          <div><button class="show-btn" @click.stop="showDetails(item)">Mostra</button></div>
+          <div><button class="show-btn" @click.stop="showDetails(item, i)">Mostra</button></div>
         </div>
       </div>
     </div>
@@ -64,12 +64,17 @@ async function fetchOptions() {
 function select(i) { selectedIndex.value = i }
 function onStartCapture() { if (selectedIndex.value == null) return; emit('start-capture', items.value[selectedIndex.value]) }
 
-function showDetails(item) { emit('show', item) }
+function showDetails(item, i) { selectedIndex.value = i; emit('show', item) }
+
+function getSelectedItem(){
+  if (selectedIndex.value == null) return null
+  return items.value[selectedIndex.value]
+}
 
 // expose refresh for parent
 function refresh() { fetchOptions() }
 
-defineExpose({ refresh })
+defineExpose({ refresh, getSelectedItem })
 
 // initial fetch
 fetchOptions()

@@ -2,7 +2,11 @@
   <div class="app">
     <h2>USRP X440 UI (Vue)</h2>
     
-    <OptionsGeneration />
+    <OptionsGeneration v-if="!showHardware" @continue="openHardware" />
+
+    <HardwareConnections v-if="showHardware" :option="hardwareOption" @close="showHardware = false" />
+
+    
 </div>
     
 </template>
@@ -15,6 +19,7 @@ import FilterPopUp from './mid_components/FilterPopUp.vue'
 import OptionsScrollArea from './mid_components/OptionsScrollArea.vue'
 
 import OptionsGeneration from './big_components/OptionsGeneration.vue'
+import HardwareConnections from './big_components/HardwareConnections.vue'
 
 const fcMultipliers = [{ label: 'M', value: 1e6 }, { label: 'G', value: 1e9 }]
 
@@ -23,6 +28,14 @@ const fmaxRef = ref(null)
 const showFilter = ref(false)
 const status = ref('')
 const optionsRef = ref(null)
+
+const showHardware = ref(false)
+const hardwareOption = ref(null)
+
+function openHardware(option) {
+  hardwareOption.value = option || null
+  showHardware.value = true
+}
 
 async function onGenerate() {
   const fmin = fminRef.value?.getComputedValue?.()
