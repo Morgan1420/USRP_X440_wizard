@@ -6,21 +6,50 @@
     </div>
 
     <div class="list-header">
-        <div class="col id-col">ID</div>
-        <div class="col range-col">Rang de freqüències</div>
-        <div class="col chans-col">Canals</div>
-        <div class="col info-col">Més informació</div>
+      <div class="col id-col">ID</div>
+      <div class="col num-po-col">Partial options</div>
+      <div class="col partial-options-col">
+        <div class="po-col-title">Partial Option 1</div>
+        <div class="subcols">
+          <div>MCR</div>
+          <div>FCR</div>
+          <div>Channels</div>
+        </div>
       </div>
+      <div class="col partial-options-col">
+        <div class="po-col-title">Partial Option 2</div>
+        <div class="subcols">
+          <div>MCR</div>
+          <div>FCR</div>
+          <div>Channels</div>
+        </div>
+      </div>
+      <div class="col info-col">Més informació</div>
+    </div>
+
     <div class="list" ref="listRef">
       
       <div v-if="loading" class="loading">Loading...</div>
       <div v-else>
         <div v-if="items.length === 0" class="empty">No options available</div>
         <div v-for="(item, i) in items" :key="i" :class="['item', {selected: i === selectedIndex} ]" @click="select(i)">
-          <div class="title">{{ item.complete_option_id ?? ('Option ' + i) }}</div>
-          <div class="range">{{ formatRange(item.f_start, item.f_end) }}</div>
-          <div class="chans">chans: {{ item.chans_needed }}</div>
-          <div><button class="show-btn" @click.stop="showDetails(item, i)">Mostra</button></div>
+          <div class="item-title">{{ item.complete_option_id ?? ('Option ' + i) }}</div>
+          <div class="col item-num-po-col">"Number of partial options"</div>
+          <div class="col partial-options-col">
+            <div class="subcols">
+              <div>{{ item.partial_option_1?.mcr ?? '-' }}</div>
+              <div>{{ item.partial_option_1?.fcr ? Math.round(item.partial_option_1.fcr) + ' Hz' : '-' }}</div>
+              <div>chans: {{ item.partial_option_1?.chans_needed ?? '-' }}</div>
+            </div>
+          </div>
+          <div class="col partial-options-col">
+            <div class="subcols">
+              <div>{{ item.partial_option_1?.mcr ?? '-' }}</div>
+              <div>{{ item.partial_option_1?.fcr ? Math.round(item.partial_option_1.fcr) + ' Hz' : '-' }}</div>
+              <div>chans: {{ item.partial_option_1?.chans_needed ?? '-' }}</div>
+            </div>
+          </div>
+          <div class="col info-col"><button class="show-btn" @click.stop="showDetails(item, i)">Mostra</button></div>
         </div>
       </div>
     </div>
@@ -121,7 +150,7 @@ fetchOptions()
 
 
 .list { 
-  max-height:415px; 
+  max-height:400px; 
   overflow:auto 
 }
 
@@ -142,6 +171,36 @@ fetchOptions()
   align-items:center;
   justify-content:center;
 }
+.id-col { width: 10% }
+.num-po-col { width: 10% }
+.partial-options-col { 
+  width: 25%;
+  display:flex;
+  flex-direction: column;
+  gap:4px;
+}
+.partial-options-col .subcols {
+  width: 100%;
+  display:flex;
+  flex-direction: row;
+  align-items:center;
+  justify-content: space-around;
+  gap:4px;
+}
+.partial-options-col .subcols div {
+  width: 30%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.partial-options-col .po-col-title {
+  width: 100%;
+  padding-bottom: 5px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.info-col { width: 15%; display:flex; align-items:center; justify-content:center }
 
 .item { 
   padding:8px; 
@@ -156,21 +215,22 @@ fetchOptions()
 .item:hover { background:#f0f0f0 }
 .item.selected { background:#eaf6ff }
 
-.item div { 
-  max-width: 25%;
-  min-width: 10%;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.item .item-title {
+  width: 10%;
+  font-weight: 600;
 }
+.item .item-num-po-col {
+  width: 10%;
+  font-weight: 600;
+}
+
 
 
 .title { font-weight:600 }
 
 .range { color:#555; font-size:0.9em }
 
-.show-btn { padding:6px 10px }
+.show-btn { width: 100%; padding:6px 10px }
 
 
 

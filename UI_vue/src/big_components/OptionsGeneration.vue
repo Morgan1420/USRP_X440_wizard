@@ -2,8 +2,8 @@
 <div class="OptionsGeneration">
 
   <div class="inputs-display">
-    <InputBox ref="fminRef" label="F_min:" placeholder="500" :multipliers="fcMultipliers" unit="Hz" :default-multiplier-index="0" />
-    <InputBox ref="fmaxRef" label="F_max:" placeholder="750" :multipliers="fcMultipliers" unit="Hz" :default-multiplier-index="0" />
+    <InputBox ref="fcRef" label="F_c:" placeholder="1575" :multipliers="fcMultipliers" unit="Hz" :default-multiplier-index="0" />
+    <InputBox ref="bwRef" label="BW:" placeholder="20" :multipliers="bwMultipliers" unit="Hz" :default-multiplier-index="1" />
   </div>
 
   <div class="buttons-display">
@@ -38,9 +38,9 @@ import OptionsScrollArea from '../mid_components/OptionsScrollArea.vue'
 import OptionDetails from './OptionDetails.vue'
 
 const fcMultipliers = [{ label: 'M', value: 1e6 }, { label: 'G', value: 1e9 }]
-
-const fminRef = ref(null)
-const fmaxRef = ref(null)
+const bwMultipliers = [{ label: 'k', value: 1e3 }, { label: 'M', value: 1e6 }, { label: 'G', value: 1e9 }]
+const fcRef = ref(null)
+const bwRef = ref(null)
 const showFilter = ref(false)
 const optionsRef = ref(null)
 const detailOption = ref(null)
@@ -64,29 +64,18 @@ function onContinue() {
 
 function onGenerate() {
   // Recuperem els valors dels InputBox
-  const fmin = fminRef.value?.getComputedValue?.()
-  const fmax = fmaxRef.value?.getComputedValue?.()
+  const fc = fcRef.value?.getComputedValue?.()
+  const bw = bwRef.value?.getComputedValue?.()
 
   // Validem els valors
-  if (fmin == null || fmax == null) {
-    alert('Error: Cal introduir valors vàlids per F_min i F_max.')
+  if (fc == null || bw == null) {
+    alert('Error: Cal introduir valors vàlids per Fc i BW.')
     return
   }
-  if (fmin > fmax) {
-    alert('Error: El valor mínim ha de ser <= al valor màxim.')
-    return
-  }
-  if (fmax > 4e9) {
-    alert('Error: El valor màxim ha de ser <= a 4 GHz.')
-    return
-  }
-  if (fmin < 0 || fmax < 0) {
-    alert('Error: El valor mínim ha de ser no negatiu.')
-    return
-  }
+  
 
   // Preparem l'objecte a enviar
-  const obj = { f_min: fmin, f_max: fmax }
+  const obj = { f_c: fc, bw: bw }
   // Enviem la petició al backend
   try{
     fetch('http://localhost:5000/api/generate', {

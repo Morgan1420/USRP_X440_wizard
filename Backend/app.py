@@ -1,11 +1,10 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os, json, traceback
-import sys
 
+# source /home/jmoran/Documents/_Docs_/UNI/TFG-GEI/USRP_X440_wizard/Backend/.venv/bin/activate
 
 from processing_scripts import generate_options as gen
-from processing_scripts import filter_options as filt
 
 app = Flask(__name__)
 CORS(app)
@@ -68,12 +67,12 @@ def post_filters():
 def generate():
     try:
         payload = request.get_json() or {}
-        f_min = payload.get('f_min')
-        f_max = payload.get('f_max')
-        time = payload.get('time', 1)
+        f_c = payload.get('f_c')
+        bw = payload.get('bw')
+        
 
         # Validate and process inputs using existing Python logic
-        ok, userInputs = gen.processInputs(f_min=f_min, f_max=f_max, time=time)
+        ok, userInputs = gen.processInputs(f_c=f_c, bw=bw)
         if not ok:
             return jsonify({'ok': False, 'message': userInputs}), 400
 
@@ -88,7 +87,7 @@ def generate():
             return jsonify({'ok': False, 'message': 'Failed generating complete options'}), 500
 
         # Apply filters and sorting (reads filters.json)
-        f_ok = filt.filter_and_sort(COMPLETE_PATH, FILTERS_PATH)
+        f_ok = gen.filter_and_sort(COMPLETE_PATH, FILTERS_PATH)
         if not f_ok:
             return jsonify({'ok': False, 'message': 'Failed filtering options'}), 500
 

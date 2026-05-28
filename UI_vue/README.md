@@ -11,14 +11,14 @@ npm run dev
 Backend (Python) server:
 
 ```bash
-cd backend
+cd Backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python app.py
 ```
 
-The backend exposes these endpoints used by the UI:
+The Backend exposes these endpoints used by the UI:
 - `POST /api/generate` -> body `{ f_min, f_max, time }` (calls processing scripts)
 - `POST /api/filters` -> saves filters to `assistanceJSONs/filters.json`
 - `GET /api/options` -> returns `assistanceJSONs/filteredOptions.json`

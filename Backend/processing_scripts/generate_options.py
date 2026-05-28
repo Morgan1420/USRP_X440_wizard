@@ -20,7 +20,7 @@ def storeJSON(data, json_path):
         print(f"Error: saving JSON failed: {e}")
 
 # Input functions
-def areInputsValid(f_min, f_max, fc, bw, time):
+def areInputsValid(f_min, f_max, fc, bw):
     # F_min
     if f_min is None or f_min <= 0:
         return False, "Error: Valor per la freqüència mínima (F_min) invàlid, aquest ha de ser un nombre positiu."
@@ -44,26 +44,20 @@ def areInputsValid(f_min, f_max, fc, bw, time):
         return False, "Error: Valor per la banda passant (BW) invàlid, aquest ha de ser un nombre positiu."
     if bw > fc:
         return False, "Error: Valor per la banda passant (BW) massa alt. Ha de ser menor o igual a la freqüència central (Fc)."
-    
-    # Time
-    if time is None or time <= 0:
-        return False, "Error: Valor per el temps (Time) invàlid, aquest ha de ser un nombre positiu."
-    if time > 5:
-        return True, "Warning: Valor per el temps (Time) massa alt. Consider baixar-lo per evitar fitxers de captura grans."
 
     # Else: if all is good
     return True, "Tots els paràmetres són vàlids."
 
-def processInputs(f_min, f_max, time):    
+def processInputs(f_c, bw):    
     
-    # Extract bw i fc
-    bw = f_max - f_min
-    fc = f_min + bw/2
+    # Calculate f_min and f_max based on f_c and bw
+    f_min = f_c - bw / 2
+    f_max = f_c + bw / 2
     
     # Store inputs if they are valid
-    if(areInputsValid(f_min=f_min, f_max=f_max, fc=fc, bw=bw, time=time)):
+    if(areInputsValid(f_min=f_min, f_max=f_max, fc=f_c, bw=bw)):
         # Create an empty dictionary of inputs
-        userInputs = {"f_min": f_min, "f_max": f_max, "fc": fc, "bw": bw, "time": time }
+        userInputs = {"f_min": f_min, "f_max": f_max, "fc": f_c, "bw": bw}
         return True, userInputs
     
     
@@ -244,3 +238,86 @@ def generateCompleteOptions(f_min, f_max, partial_options_path):
     storeJSON(complete_options, './assistanceJSONs/completeOptions.json')
     
     return True
+
+
+def filter_and_sort(complete_options_path="./assistanceJSONs/completeOptions.json", filters_json_path='./assistanceJSONs/filters.json'):
+    
+    # Read filters from tje JSON file
+    filters = readJSON(filters_json_path) or {}
+    if filters is None:
+        print("Error: No s'ha pogut carregar els filtres des del fitxer JSON.")
+        return False
+    
+    # Extract filters from the file
+    min_ch = filters.get('min_channels') if isinstance(filters, dict) else None
+    max_ch = filters.get('max_channels') if isinstance(filters, dict) else None
+    sorting = (filters.get('sorting') if isinstance(filters, dict) else None) or ''
+    sorting = sorting.strip().lower()
+
+
+    # Read complete options from the JSON file
+    complete_options = readJSON(complete_options_path)
+    if complete_options is None:
+        print("Error: No s'ha pogut carregar les opcions completes des del fitxer JSON.")
+        return False
+
+    # Helper functions to extract sorting keys, handling None values
+    def chans_needed_of(item):
+        try:
+            return int(item.get('chans_needed'))
+        except Exception:
+            return None
+
+    def overlap_width(item):
+        try:
+            return float(item.get('f_end', 0)) - float(item.get('f_start', 0))
+        except Exception:
+            return None
+
+    # Filter implementation
+    filtered = []
+    for item in complete_options:
+        # skip invalid items
+        if not isinstance(item, dict):
+            continue
+        
+        # Filter for min/max channels needed
+        ch = chans_needed_of(item)
+        if min_ch is not None:
+            if ch is None or ch < int(min_ch):
+                continue # If we don't pass the filter we skip to the next item
+        if max_ch is not None:
+            if ch is None or ch > int(max_ch):
+                continue
+        
+        # Filter options with more than 2 partial options (USRP X440 only supports 2 different sample frequencies at the same time).
+        partials = item.get('partial_options', [])
+        if len(partials) > 2:
+            continue
+        
+        filtered.append(item)
+
+    # Sorting implementation
+    if sorting == 'max chan' or sorting == 'max chan(s)' or sorting == 'max chan(s)':
+        filtered.sort(key=lambda i: (chans_needed_of(i) is None, -(chans_needed_of(i) or 0)))
+    elif sorting == 'min chan' or sorting == 'min chan(s)':
+        filtered.sort(key=lambda i: (chans_needed_of(i) is None, chans_needed_of(i) or 0))
+    elif sorting == 'min overlap' or sorting == 'min overlap()' or sorting == 'min overlap':
+        # sort by smallest frequency span (f_end - f_start), then by chans needed
+        def key_fn(i):
+            ow = overlap_width(i)
+            chv = chans_needed_of(i) or 0
+            return ((ow is None), (ow if ow is not None else float('inf')), chv)
+
+        filtered.sort(key=key_fn)
+    else:
+        # default: sort by chans_needed ascending, then by f_start
+        filtered.sort(key=lambda i: (chans_needed_of(i) is None, chans_needed_of(i) or 0, i.get('f_start', 0)))
+
+    
+    # Store the filtered and sorted options back to a JSON file
+    storeJSON(filtered, './assistanceJSONs/filteredOptions.json')
+    
+    # Return True if everything went ok :)
+    return True
+

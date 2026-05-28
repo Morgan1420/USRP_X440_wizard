@@ -18,12 +18,12 @@ UI_vue/yarn.lock
 UI_vue/pnpm-lock.yaml
 
 # Backend
-backend/.venv/
-backend/assistanceJSONs/completeOptions.json
-backend/assistanceJSONs/filteredOptions.json
-backend/assistanceJSONs/partialOptions.json
-backend/assistanceJSONs/filters.json
-backend/assistanceJSONs/usrpInfo.json
+Backend/.venv/
+Backend/assistanceJSONs/completeOptions.json
+Backend/assistanceJSONs/filteredOptions.json
+Backend/assistanceJSONs/partialOptions.json
+Backend/assistanceJSONs/filters.json
+Backend/assistanceJSONs/usrpInfo.json
 
 
 # Logs and misc
