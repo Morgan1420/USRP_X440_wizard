@@ -13,7 +13,7 @@
 
     <section class="bottom-section">
       <NetworkConnections class="network-section" />
-      <SampleRateOptions class="sample-rate-section" />
+      <SampleRateOptions class="sample-rate-section" :option="option" />
     </section>
 
     <div class="footer">
@@ -28,6 +28,7 @@ import { ref, watch, onBeforeUnmount } from 'vue'
 import PartialOptionsBoxes from '../mid_components/PartialOptionsBoxes.vue'
 import NetworkConnections from '../mid_components/NetworkConnections.vue'
 import PortsConnections from '../mid_components/PortsConnections.vue'
+import SampleRateOptions from '../mid_components/SampleRateOptions.vue'
 import Button from '../small_components/Button.vue'
 
 const props = defineProps({ option: { type: Object, default: null }, numPorts: { type: Number, default: 8 } })
@@ -66,9 +67,29 @@ onBeforeUnmount(() => {
   font-weight:700;
 }
 
+.bottom-section{ 
+  width:100%;
+  display:flex; 
+  gap:18px; 
+  justify-content:space-between; 
+  align-items:center;
+  flex-wrap:wrap; 
+}
+
+
 
 .content{ display:grid; grid-template-columns:1fr 1fr; gap:18px }
-.partials-section, .network-section{ background:#fff; border:1px solid #eee; padding:12px; border-radius:6px }
+.partials-section, .network-section{ 
+  width:60%;
+  height: 230px;
+ }
+.sample-rate-section{
+  width: 30%;
+  height: 230px;
+  padding-block: 12px;
+  padding-inline: 2.5%;
+}
+
 .footer{ display:flex; gap:8px; justify-content:flex-end }
 
 </style>

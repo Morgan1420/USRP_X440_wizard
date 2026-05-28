@@ -109,7 +109,7 @@ def get_options():
 # Ruta per validar connexions USRP des del frontend
 @app.route('/api/validate_connections', methods=['POST'])
 def validate_connections():
-  try: 
+  try:
     payload = request.get_json() or {}
     rows = payload.get('rows') or []
 
@@ -123,25 +123,37 @@ def validate_connections():
       if not connected:
         statusA = '-'
         statusB = '-'
+        status = '-'
       else:
         # Delegate validation to USRP handler which returns per-ip info
         res = usrp_handler.validateConnectionToTheUSRP(ipA, ipB)
-        def _map(v):
-          return 'valid' if v is True else 'invalid'
 
-        statusA = _map(res.get('ipA'))
-        statusB = _map(res.get('ipB'))
+        def _map_human(v):
+          if v is True:
+            return 'Si'
+          if v is False:
+            return 'No'
+          return '-'
+
+        statusA = _map_human(res.get('ipA'))
+        statusB = _map_human(res.get('ipB'))
+
+        # overall status: 'Si' if any channel is valid, otherwise 'No'
+        status = 'Si' if (res.get('ipA') is True or res.get('ipB') is True) else 'No'
 
       results.append({
         'name': name,
         'ipA': ipA,
         'ipB': ipB,
         'statusA': statusA,
-        'statusB': statusB
+        'statusB': statusB,
+        'status': status
       })
 
+    print("Validation results:", results)
     return jsonify({'ok': True, 'results': results})
   except Exception as e:
+    print("Error validating connections:")
     traceback.print_exc()
     return jsonify({'ok': False, 'message': str(e)}), 500
     

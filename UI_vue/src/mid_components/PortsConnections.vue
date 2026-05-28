@@ -1,30 +1,36 @@
 <template>
   <div class="ports-shell" ref="containerRef">
     <section class="ports-section">
-      <h4>Ports</h4>
       
-      <div class="ports-box">
-        <div class="empty-port"></div>
-        <div v-for="i in leftCount" :key="'left-'+i" class="port" :ref="el => setPortRef(el, i-1)" :class="{assigned: portToPartial[i-1] != null}" @pointerdown.prevent="startDragFromPort(i-1, $event)">{{ portLabels[i-1] }}</div>
-        <div class="empty-port"></div>
-        <div v-for="i in rightCount" :key="'right-'+i" class="port" :ref="el => setPortRef(el, leftCount + (i-1))" :class="{assigned: portToPartial[leftCount + (i-1)] != null}" @pointerdown.prevent="startDragFromPort(leftCount + (i-1), $event)">{{ portLabels[leftCount + (i-1)] }}</div>
-        <div class="empty-port"></div>
-      </div>
+      <h4>Ports</h4>
 
+      <div class="USRP-represent">
+        <div class="h5">Representació dels ports de la USRP x440:</div>
+        <div class="ports-box">
+          <div class="empty-port"></div>
+          <div v-for="i in leftCount" :key="'left-'+i" class="port" :ref="el => setPortRef(el, i-1)" :class="{assigned: portToPartial[i-1] != null}" @pointerdown.prevent="startDragFromPort(i-1, $event)">{{ portLabels[i-1] }}</div>
+          <div class="empty-port"></div>
+          <div v-for="i in rightCount" :key="'right-'+i" class="port" :ref="el => setPortRef(el, leftCount + (i-1))" :class="{assigned: portToPartial[leftCount + (i-1)] != null}" @pointerdown.prevent="startDragFromPort(leftCount + (i-1), $event)">{{ portLabels[leftCount + (i-1)] }}</div>
+          <div class="empty-port"></div>
+        </div>
+      </div>
+    <div class="zones-container">
+      <div class="h5">Display dels canals de cadascuna de les opcions parcials:</div>
       <div class="partial-options-zones" v-if="partials && partials.length">
         <div class="partial-option" v-for="(p, pi) in partials" :key="p.option_id ?? pi">
-          <div class="partial-title">Option {{ pi + 1 }}</div>
+          <div class="partial-title">Opció: {{ pi + 1 }}</div>
           <div class="partial-ports">
             <div class="partial-port" v-for="(port, si) in computePorts(p)" :key="si">
               <div class="dot-port" :ref="el => setPartialRef(el, pi, si)" @pointerdown.prevent="startDragFromPartial(pi, si, $event)"></div>
               <div class="freqs">
-                <div class="freq">{{ formatFreq(port.f_start) }}</div>
-                <div class="freq">{{ formatFreq(port.f_end) }}</div>
+                <div class="freq"><b>F_c:</b> {{ formatFreq(port.f_center) }}</div>
+                <div class="freq"><b>BW:</b> {{ formatFreq(port.bw) }}</div>
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
     </section>
 
@@ -335,7 +341,9 @@ function computePorts(p){
   for (let i = 0; i < num; i++){
     const s = fs + i * piece
     const e = (i < num - 1) ? s + piece : fe
-    out.push({ f_start: s, f_end: e })
+    const center = (s + e) / 2
+    const bw = Math.abs(e - s)
+    out.push({ f_start: s, f_end: e, f_center: center, bw: bw })
   }
   return out
 }
@@ -361,13 +369,50 @@ defineExpose({ autoAssign })
 </script>
 
 <style scoped>
-.ports-shell{ position:relative }
+.ports-shell{ 
+  position:relative;
+}
+.ports-section{ 
+  background:#f9f9f9; 
+  
+  padding:12px;
+  padding-inline: 5%;
+  
+  border:5px solid #ddd; 
+  border-radius:10px; 
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 15px
+}
+
+h4{
+  font-size: 1.8rem;
+  margin: 10px;
+}
+
+.USRP-represent{
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.h5 {
+  margin-left: 15px;
+}
+
 .ports-box{ 
+  width: 100%;
+
   display: flex;
   justify-content: space-between;
   gap:12px; 
-  padding:12px; 
-  border:1px solid #eee; 
+  padding:20px;
+
+  border:5px solid #e0e0e0;  
   border-radius:6px;
 }
 .empty-port{ 
@@ -381,7 +426,7 @@ defineExpose({ autoAssign })
 
   border-radius:50%;
   background:#e0e0e0;
-  border:2px solid #bbb;
+  border:2px solid #555;
   border-radius:100%;
 
   display:flex;
@@ -393,9 +438,18 @@ defineExpose({ autoAssign })
 }
 
 .port.assigned{ 
-  box-shadow:0 0 0 3px rgba(34,197,94,0.12);
+  border-color: #22c55e;
   background:#22c55e; 
 
+}
+
+.zones-container{
+  width: 100%;
+  margin-top: 15px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 15px
 }
 
 .partial-options-zones{ 
@@ -413,19 +467,27 @@ defineExpose({ autoAssign })
   flex-direction:column; 
   gap:8px; 
   
-  border:1px solid #f3f6fb; 
+  border:5px solid #e0e0e0; 
   border-radius:8px; 
-  background:#fff; 
+  background:#ffffff36; 
 }
 .partial-title{ font-weight:700; text-align:center; margin-bottom:6px }
 .partial-ports{ display:flex; gap:8px; align-items:flex-start; justify-content:center; flex-wrap:wrap }
-.partial-port{ display:flex; gap:8px; align-items:center; padding:6px 8px; border-radius:6px; background:#fafafa; border:1px solid #eee; min-width:140px }
+.partial-port{ 
+  display:flex;
+  gap:8px;
+  align-items:center;
+  padding:6px 8px;
+  border-radius:6px;
+  background:#fafafa;
+  border:2px solid #ccc;
+  min-width:140px }
 .dot-port{ 
   width:12px;
   height:12px;
   border-radius:50%;
-  background:#2b80ff;
-  border:2px solid #164fdd;
+  background:#22c55e;
+  border:2px solid #22c55e;
  }
 .freqs{ display:flex; flex-direction:column }
 .freq{ font-size:12px; color:#222 }
@@ -433,6 +495,5 @@ defineExpose({ autoAssign })
 .connections-svg{ position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none }
 .connections-svg line{ pointer-events:stroke; cursor:pointer }
 
-.ports-section{ background:#fff; border:1px solid #eee; padding:12px; border-radius:6px }
 
 </style>

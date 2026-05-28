@@ -1,22 +1,24 @@
 <template>
-  <h4>Network</h4>
-  <div class="network-grid">
-    <div class="header-row">
-      <div class="col name">Connection</div>
-      <div class="col ip">IP Address </div>
-      <div class="col connected">Connected</div>
-      <div class="col validated">Validated</div>
-    </div>
+  <div class="network-connections">
+    <h4>Connexions QSFP28</h4>
+    <div class="network-grid">
+      <div class="header-row">
+        <div class="col name">Connexió:</div>
+        <div class="col ip">Adreça IP:</div>
+        <div class="col connected">Estan connectats?</div>
+        <div class="col validated">La connexió és vàlida?</div>
+      </div>
 
-    <div class="row" v-for="(r, i) in rows" :key="i">
-      <div class="col name">{{ r.name }}</div>
-      <div class="col ip"><input v-model="r.ipA" type="text" placeholder="0.0.0.0" /></div>
-      <div class="col connected"><button :class="{on:r.connected}" @click="toggleConnected(i)">{{ r.connected ? 'Yes' : 'No' }}</button></div>
-      <div class="col validated"> <span :class="{ok: r.validated === 'valid', invalid: r.validated === 'invalid', validating: r.validated === 'validating'}">{{ r.validated || '-' }}</span> </div>
-    </div>
+      <div class="row" v-for="(r, i) in rows" :key="i">
+        <div class="col name">{{ r.name }}</div>
+        <div class="col ip"><input v-model="r.ipA" type="text" placeholder="0.0.0.0" /></div>
+        <div class="col connected"><button :class="{on:r.connected}" @click="toggleConnected(i)">{{ r.connected ? 'Yes' : 'No' }}</button></div>
+        <div class="col validated"> <span :class="{ok: r.validated === 'Si', invalid: r.validated === 'No', validating: r.validated === 'validant...'}">{{ r.validated || '-' }}</span> </div>
+      </div>
 
-    <div class="actions">
-      <button @click="validateAll">Validate Connections</button>
+      <div class="actions">
+        <button @click="validateAll">Validar Connexions</button>
+      </div>
     </div>
   </div>
 </template>
@@ -45,10 +47,10 @@ async function validateAll(){
       return
     }
     if (!isIPv4(r.ipA) && !isIPv4(r.ipB)) {
-      r.validated = 'invalid'
+      r.validated = 'No'
       return
     }
-    r.validated = 'validating...'
+    r.validated = 'validant...'
     toValidate.push({ name: r.name, ipA: r.ipA, ipB: r.ipB, connected: r.connected })
   })
   
@@ -69,14 +71,14 @@ async function validateAll(){
     } else {
       toValidate.forEach(t => {
         const idx = rows.findIndex(rr => rr.name === t.name)
-        if (idx !== -1) rows[idx].validated = 'invalid'
+        if (idx !== -1) rows[idx].validated = 'No'
       })
     }
   } catch (e) {
     console.error(e)
     toValidate.forEach(t => {
       const idx = rows.findIndex(rr => rr.name === t.name)
-      if (idx !== -1) rows[idx].validated = 'invalid'
+      if (idx !== -1) rows[idx].validated = 'No'
     })
   }
 }
@@ -87,7 +89,31 @@ function getConfig(){
 </script>
 
 <style scoped>
-.network-grid{ display:flex; flex-direction:column; gap:8px }
+
+.network-connections{ 
+  padding:12px; 
+  background:#f9f9f9; 
+  border:5px solid #ddd; 
+  border-radius:10px;
+
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:12px;
+}
+
+h4 {
+  padding:10px;
+  margin:0;
+  font-size:1.7rem;
+}
+
+.network-grid{ 
+  width:90%;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
 .header-row, .row{ 
   display:flex; 
   justify-content:space-between; 
@@ -111,11 +137,37 @@ function getConfig(){
 }
 
 .row input{ width:100%; padding:6px; border:1px solid #ccc; border-radius:4px }
-.connected button{ padding:6px 8px; border-radius:6px }
-.connected button.on{ background:#2b80ff; color:white }
+.connected button{ 
+  padding:6px 8px; 
+  border-radius:6px;
+  border:2px solid #ccc;
+}
+.connected button.on{ 
+  background:#2b80ff; 
+  color:white;
+  border:2px solid #2b80ff;
+}
+.col.connected button:hover{ 
+  transform:scale(1.1);
+}
 .validated .ok{ color:green; font-weight:600 }
 .validated .invalid{ color:crimson; font-weight:600 }
 .validated .validating{ color:#f39c12; font-weight:600 }
-.actions{ display:flex; justify-content:flex-end; margin-top:8px }
-.actions button{ padding:8px 12px; border-radius:6px }
+.actions{ 
+  padding-right:15px;
+  display:flex; 
+  justify-content:flex-end; 
+  margin-top:8px }
+.actions button{ 
+  padding:8px 12px; 
+  border-radius:6px;
+  background:#2b80ff;
+  color:white;
+  font-weight:600;
+  font-size:1em;
+  border:2px solid #2b80ff
+}
+.actions button:hover{ 
+  transform:scale(1.05);
+}
 </style>
