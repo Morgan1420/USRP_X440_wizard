@@ -6,13 +6,14 @@
       <div class="empty_class"></div>
     </div>
 
-    <section class="PortsConnections-section">
+    <section class="top-section">
       <PortsConnections ref="portsRef" :option="option" :numPorts="numPorts" @mapping-changed="forwardMapping" />
     </section>
     
 
-    <section class="network-section">
-      <NetworkConnections  @update:config="onNetworkUpdate" />
+    <section class="bottom-section">
+      <NetworkConnections class="network-section" />
+      <SampleRateOptions class="sample-rate-section" />
     </section>
 
     <div class="footer">
@@ -41,8 +42,6 @@ function forwardMapping(payload){
 function callAutoAssign(){
   if (portsRef.value && typeof portsRef.value.autoAssign === 'function') portsRef.value.autoAssign()
 }
-
-function onNetworkUpdate(cfg){ emit('network-update', cfg) }
 
 onBeforeUnmount(() => {
   // child PortsConnections will remove its own listeners

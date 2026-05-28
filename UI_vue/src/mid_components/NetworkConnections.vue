@@ -12,7 +12,7 @@
       <div class="col name">{{ r.name }}</div>
       <div class="col ip"><input v-model="r.ipA" type="text" placeholder="0.0.0.0" /></div>
       <div class="col connected"><button :class="{on:r.connected}" @click="toggleConnected(i)">{{ r.connected ? 'Yes' : 'No' }}</button></div>
-      <div class="col validated"> <span :class="{ok: r.validated}">{{ r.validated ? 'OK' : '-' }}</span> </div>
+      <div class="col validated"> <span :class="{ok: r.validated === 'valid', invalid: r.validated === 'invalid', validating: r.validated === 'validating'}">{{ r.validated || '-' }}</span> </div>
     </div>
 
     <div class="actions">
@@ -25,12 +25,11 @@
 import { reactive } from 'vue'
 
 const props = defineProps({ rowsCount: { type: Number, default: 2 } })
-const emit = defineEmits(['update:config'])
 
 const rows = reactive([])
-for (let i = 0; i < props.rowsCount; i++) rows.push({ name: `QSFP28_${i+1}`, ipA: '', ipB: '', connected: false, validated: false })
+for (let i = 0; i < props.rowsCount; i++) rows.push({ name: `QSFP28_${i+1}`, ipA: '', ipB: '', connected: false, validated: '-' })
 
-function toggleConnected(i){ rows[i].connected = !rows[i].connected; emit('update:config', getConfig()) }
+function toggleConnected(i){ rows[i].connected = !rows[i].connected;}
 
 function isIPv4(ip){
   if (!ip) return false
@@ -38,11 +37,48 @@ function isIPv4(ip){
   return re.test(ip.trim())
 }
 
-function validateAll(){
+async function validateAll(){
+  const toValidate = []
   rows.forEach(r => {
-    r.validated = isIPv4(r.ipA) || isIPv4(r.ipB)
+    if (!r.connected) {
+      r.validated = '-'
+      return
+    }
+    if (!isIPv4(r.ipA) && !isIPv4(r.ipB)) {
+      r.validated = 'invalid'
+      return
+    }
+    r.validated = 'validating...'
+    toValidate.push({ name: r.name, ipA: r.ipA, ipB: r.ipB, connected: r.connected })
   })
-  emit('update:config', getConfig())
+  
+  if (toValidate.length === 0) return
+
+  try {
+    const resp = await fetch('http://127.0.0.1:5000/api/validate_connections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: toValidate })
+    })
+    const data = await resp.json()
+    if (data.ok && Array.isArray(data.results)) {
+      data.results.forEach(rres => {
+        const idx = rows.findIndex(rr => rr.name === rres.name)
+        if (idx !== -1) rows[idx].validated = rres.status
+      })
+    } else {
+      toValidate.forEach(t => {
+        const idx = rows.findIndex(rr => rr.name === t.name)
+        if (idx !== -1) rows[idx].validated = 'invalid'
+      })
+    }
+  } catch (e) {
+    console.error(e)
+    toValidate.forEach(t => {
+      const idx = rows.findIndex(rr => rr.name === t.name)
+      if (idx !== -1) rows[idx].validated = 'invalid'
+    })
+  }
 }
 
 function getConfig(){
@@ -78,6 +114,8 @@ function getConfig(){
 .connected button{ padding:6px 8px; border-radius:6px }
 .connected button.on{ background:#2b80ff; color:white }
 .validated .ok{ color:green; font-weight:600 }
+.validated .invalid{ color:crimson; font-weight:600 }
+.validated .validating{ color:#f39c12; font-weight:600 }
 .actions{ display:flex; justify-content:flex-end; margin-top:8px }
 .actions button{ padding:8px 12px; border-radius:6px }
 </style>

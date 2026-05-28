@@ -262,8 +262,6 @@ function onPortToggle(i, isSelected){
   emit('mapping-changed', { portToBox: portToBox.value, boxToPorts: boxToPorts.value })
 }
 
-function onNetworkUpdate(cfg){ emit('network-update', cfg) }
-
 function autoAssign(){
   const plist = flattenPartialPorts()
   portToPartial.value = {}

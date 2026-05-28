@@ -1,0 +1,4 @@
+<template>
+    Sample rate
+</template>
+
