@@ -7,7 +7,8 @@
 
     <div class="list-header">
       <div class="col id-col">ID</div>
-      <div class="col num-po-col">Partial options</div>
+      <div class="col num-po-col"># Opcions parcials</div>
+      <div class="col num-po-col"># Chans</div>
       <div class="col partial-options-col">
         <div class="po-col-title">Partial Option 1</div>
         <div class="subcols">
@@ -33,20 +34,21 @@
       <div v-else>
         <div v-if="items.length === 0" class="empty">No options available</div>
         <div v-for="(item, i) in items" :key="i" :class="['item', {selected: i === selectedIndex} ]" @click="select(i)">
-          <div class="item-title">{{ item.complete_option_id ?? ('Option ' + i) }}</div>
-          <div class="col item-num-po-col">"Number of partial options"</div>
+          <div class="item-title">{{ item.complete_option_id }}</div>
+          <div class="col item-num-po-col">{{countPartialOptions(item)}}</div>
+          <div class="col item-num-po-col">{{item.chans_needed}}</div>
           <div class="col partial-options-col">
             <div class="subcols">
-              <div>{{ item.partial_option_1?.mcr ?? '-' }}</div>
-              <div>{{ item.partial_option_1?.fcr ? Math.round(item.partial_option_1.fcr) + ' Hz' : '-' }}</div>
-              <div>chans: {{ item.partial_option_1?.chans_needed ?? '-' }}</div>
+              <div>{{ getMCR(item, 0) }}</div>
+              <div>{{ getFCR(item, 0) }}</div>
+              <div>{{ getChans(item, 0) }}</div>
             </div>
           </div>
           <div class="col partial-options-col">
             <div class="subcols">
-              <div>{{ item.partial_option_1?.mcr ?? '-' }}</div>
-              <div>{{ item.partial_option_1?.fcr ? Math.round(item.partial_option_1.fcr) + ' Hz' : '-' }}</div>
-              <div>chans: {{ item.partial_option_1?.chans_needed ?? '-' }}</div>
+              <div>{{ getMCR(item, 1) }}</div>
+              <div>{{ getFCR(item, 1) }}</div>
+              <div>{{ getChans(item, 1) }}</div>
             </div>
           </div>
           <div class="col info-col"><button class="show-btn" @click.stop="showDetails(item, i)">Mostra</button></div>
@@ -63,6 +65,7 @@
 <script setup>
 import { ref } from 'vue'
 
+// Variables i tal
 const emit = defineEmits(['show','start-capture'])
 const listRef = ref(null)
 const items = ref([])
@@ -70,10 +73,37 @@ const loading = ref(false)
 const selectedIndex = ref(null)
 
 
-function formatRange(a,b) {
-  if (a == null || b == null) return ''
-  try { return Math.round(a) + ' - ' + Math.round(b) + ' Hz' } catch(e) { return '' }
+// ====================================== Funcions de la UI
+// Funció per seleccionar una fila
+function select(i) { selectedIndex.value = i }
+
+// Funció pel botó "mostra"
+function showDetails(item, i) { 
+  selectedIndex.value = i; 
+  emit('show', item) 
 }
+
+// Funció per calcular les opcions parcials dins d'una opció
+function countPartialOptions(option) {
+  return option.partial_options.length
+}
+// Funcions getter
+function getMCR(option, poIndex) {
+  if (option.partial_options[poIndex]?.mcr_mhz == null) 
+    return null
+  return option.partial_options[poIndex].mcr_mhz + ' MHz'
+}
+function getFCR(option, poIndex) {
+  if (option.partial_options[poIndex]?.fcr_ghz == null) 
+    return null
+  return option.partial_options[poIndex].fcr_ghz + ' GHz'
+}
+function getChans(option, poIndex) {
+  if (option.partial_options[poIndex]?.chans_needed == null) 
+    return null
+  return option.partial_options[poIndex].chans_needed
+}
+
 
 async function fetchOptions() {
   loading.value = true
@@ -90,16 +120,10 @@ async function fetchOptions() {
   }
 }
 
-function select(i) { selectedIndex.value = i }
-function onStartCapture() { if (selectedIndex.value == null) return; emit('start-capture', items.value[selectedIndex.value]) }
-
-function showDetails(item, i) { selectedIndex.value = i; emit('show', item) }
-
 function getSelectedItem(){
   if (selectedIndex.value == null) return null
   return items.value[selectedIndex.value]
 }
-
 // expose refresh for parent
 function refresh() { fetchOptions() }
 
@@ -150,7 +174,7 @@ fetchOptions()
 
 
 .list { 
-  max-height:400px; 
+  max-height:360px; 
   overflow:auto 
 }
 
@@ -200,7 +224,7 @@ fetchOptions()
   align-items:center;
   justify-content:center;
 }
-.info-col { width: 15%; display:flex; align-items:center; justify-content:center }
+.info-col { width: 10%; display:flex; align-items:center; justify-content:center }
 
 .item { 
   padding:8px; 
@@ -218,10 +242,16 @@ fetchOptions()
 .item .item-title {
   width: 10%;
   font-weight: 600;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 .item .item-num-po-col {
   width: 10%;
-  font-weight: 600;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
 }
 
 
