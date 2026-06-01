@@ -64,5 +64,3 @@ def validateConnectionToTheUSRP(ip_address_1=None, ip_address_2=None):
     return result
 
 
-#validateConnectionToTheUSRP("192.168.10.2", "192.168.10.3")
-

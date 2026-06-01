@@ -17,14 +17,13 @@
     </section>
 
     <div class="footer">
-      <Button label="Auto-connect" @click="callAutoAssign"/>
       <Button label="Capture" @click="$emit('capture')"/>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { ref, watch, onBeforeUnmount, onMounted } from 'vue'
 import PartialOptionsBoxes from '../mid_components/PartialOptionsBoxes.vue'
 import NetworkConnections from '../mid_components/NetworkConnections.vue'
 import PortsConnections from '../mid_components/PortsConnections.vue'
@@ -40,9 +39,14 @@ function forwardMapping(payload){
   emit('mapping-changed', payload)
 }
 
-function callAutoAssign(){
+// Automatically assign when this screen is mounted and whenever the option changes
+onMounted(() => {
   if (portsRef.value && typeof portsRef.value.autoAssign === 'function') portsRef.value.autoAssign()
-}
+})
+
+watch(() => props.option, (o) => {
+  if (o && portsRef.value && typeof portsRef.value.autoAssign === 'function') portsRef.value.autoAssign()
+})
 
 onBeforeUnmount(() => {
   // child PortsConnections will remove its own listeners

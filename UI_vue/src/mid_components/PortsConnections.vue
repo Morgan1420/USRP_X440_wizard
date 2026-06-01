@@ -95,29 +95,6 @@ function getElementCenter(el){
   return { x: (r.left + r.right)/2 - crect.left, y: (r.top + r.bottom)/2 - crect.top }
 }
 
-function flattenPartialPorts(){
-  const list = []
-  for (let pi = 0; pi < partials.value.length; pi++){
-    const ports = computePorts(partials.value[pi])
-    for (let si = 0; si < ports.length; si++) list.push({ key: `${pi}:${si}`, pi, si })
-  }
-  return list
-}
-
-const lines = computed(() => {
-  const out = []
-  for (const [portIdxStr, key] of Object.entries(portToPartial.value)){
-    const portIdx = Number(portIdxStr)
-    const portEl = portRefs.value[portIdx]
-    const partEl = partialRefs.value[key]
-    if (!portEl || !partEl) continue
-    const a = getElementCenter(partEl)
-    const b = getElementCenter(portEl)
-    out.push({ portIdx, key, x1: a.x, y1: a.y, x2: b.x, y2: b.y })
-  }
-  return out
-})
-
 function startDragFromPartial(pi, si, ev){
   const key = `${pi}:${si}`
   dragging.value.active = true
@@ -146,6 +123,14 @@ function onPointerMove(ev){
   dragging.value.y = ev.clientY
 }
 
+function flattenPartialPorts(){
+  const list = []
+  for (let pi = 0; pi < partials.value.length; pi++){
+    const ports = computePorts(partials.value[pi])
+    for (let si = 0; si < ports.length; si++) list.push({ key: `${pi}:${si}`, pi, si })
+  }
+  return list
+}
 function findPortAtClientPos(cx, cy){
   for (let i = 0; i < portRefs.value.length; i++){
     const el = portRefs.value[i]
@@ -269,65 +254,67 @@ function onPortToggle(i, isSelected){
 }
 
 function autoAssign(){
-  const plist = flattenPartialPorts()
+  // Iterate every partial option and assign every band (sub-port) to the first
+  // available physical port that respects the connection rules.
   portToPartial.value = {}
   partialToPorts.value = {}
-  if (partials.value.length === 2) {
-    const leftPorts = Array.from({ length: Math.floor(props.numPorts/2) }, (_, i) => i)
-    const rightPorts = Array.from({ length: Math.ceil(props.numPorts/2) }, (_, i) => i + Math.floor(props.numPorts/2))
-    const p0 = plist.filter(x => x.pi === 0)
-    for (let i = 0; i < p0.length && i < leftPorts.length; i++){
-      const key = p0[i].key
-      const portIdx = leftPorts[i]
-      portToPartial.value[portIdx] = key
-      partialToPorts.value[key] = [portIdx]
-      portsSelected.value[portIdx] = true
+  portsSelected.value = Array.from({ length: props.numPorts }, () => false)
+
+  if (!partials.value || partials.value.length === 0) {
+    emit('mapping-changed', { portToPartial: portToPartial.value, partialToPorts: partialToPorts.value })
+    return
+  }
+
+  const nPorts = Number(props.numPorts || 0)
+  const leftCountLocal = Math.floor(nPorts/2)
+  const leftPorts = Array.from({ length: leftCountLocal }, (_, i) => i)
+  const rightPorts = Array.from({ length: nPorts - leftCountLocal }, (_, i) => i + leftCountLocal)
+
+  function allowedPortsForPartial(pi){
+    if (partials.value.length === 2){
+      return (pi === 0) ? leftPorts : rightPorts
     }
-    const p1 = plist.filter(x => x.pi === 1)
-    for (let i = 0; i < p1.length && i < rightPorts.length; i++){
-      const key = p1[i].key
-      const portIdx = rightPorts[i]
-      portToPartial.value[portIdx] = key
-      partialToPorts.value[key] = [portIdx]
-      portsSelected.value[portIdx] = true
-    }
-    for (let i = p0.length; i < leftPorts.length; i++){
-      const key = p0[i % p0.length]?.key || (p0[0] && p0[0].key)
-      if (!key) break
-      const portIdx = leftPorts[i]
-      portToPartial.value[portIdx] = key
+    return Array.from({ length: nPorts }, (_, i) => i)
+  }
+
+  const unassigned = []
+
+  for (let pi = 0; pi < partials.value.length; pi++){
+    const bands = computePorts(partials.value[pi])
+    for (let si = 0; si < bands.length; si++){
+      const key = `${pi}:${si}`
+      const candidates = allowedPortsForPartial(pi)
+
+      // 1) choose first unassigned candidate port
+      let chosen = candidates.find(p => portToPartial.value[p] == null)
+
+      // 2) if none free, prefer a port already assigned to the same partial (same pi)
+      if (chosen == null){
+        chosen = candidates.find(p => {
+          const v = portToPartial.value[p]
+          return v != null && v.split(':')[0] === String(pi)
+        })
+      }
+
+      // 3) if still none, we cannot assign this band
+      if (chosen == null){
+        unassigned.push({ pi, si, key })
+        continue
+      }
+
+      // Assign
+      portToPartial.value[chosen] = key
       partialToPorts.value[key] = partialToPorts.value[key] || []
-      partialToPorts.value[key].push(portIdx)
-      portsSelected.value[portIdx] = true
-    }
-    for (let i = p1.length; i < rightPorts.length; i++){
-      const key = p1[i % Math.max(1,p1.length)]?.key || (p1[0] && p1[0].key)
-      if (!key) break
-      const portIdx = rightPorts[i]
-      portToPartial.value[portIdx] = key
-      partialToPorts.value[key] = partialToPorts.value[key] || []
-      partialToPorts.value[key].push(portIdx)
-      portsSelected.value[portIdx] = true
-    }
-  } else {
-    const pcount = plist.length
-    let assigned = 0
-    for (let i = 0; i < Math.min(props.numPorts, pcount); i++){
-      const key = plist[i].key
-      portToPartial.value[i] = key
-      partialToPorts.value[key] = [i]
-      portsSelected.value[i] = true
-      assigned++
-    }
-    for (let i = assigned; i < props.numPorts; i++){
-      const target = plist[(i - assigned) % Math.max(1, pcount)]
-      const key = target.key
-      portToPartial.value[i] = key
-      partialToPorts.value[key] = partialToPorts.value[key] || []
-      partialToPorts.value[key].push(i)
-      portsSelected.value[i] = true
+      if (!partialToPorts.value[key].includes(chosen)) partialToPorts.value[key].push(chosen)
+      portsSelected.value[chosen] = true
     }
   }
+
+  if (unassigned.length > 0){
+    // Inform user that not all bands could be connected
+    alert(`No hi ha ports disponibles per connectar ${unassigned.length} canals; deixats sense assignar.`)
+  }
+
   emit('mapping-changed', { portToPartial: portToPartial.value, partialToPorts: partialToPorts.value })
 }
 
@@ -356,6 +343,28 @@ function formatFreq(f){
   if (v >= 1e3) return (v/1e3).toFixed(0) + ' kHz'
   return v + ' Hz'
 }
+
+const lines = computed(() => {
+  const out = []
+  if (!containerRef.value) return out
+  const crect = containerRef.value.getBoundingClientRect()
+  const n = Number(props.numPorts || 0)
+  for (let i = 0; i < n; i++){
+    const key = portToPartial.value[i]
+    if (!key) continue
+    const portEl = portRefs.value[i]
+    const partialEl = partialRefs.value[key]
+    if (!portEl || !partialEl) continue
+    const pr = portEl.getBoundingClientRect()
+    const br = partialEl.getBoundingClientRect()
+    const x1 = (pr.left + pr.right)/2 - crect.left
+    const y1 = (pr.top + pr.bottom)/2 - crect.top
+    const x2 = (br.left + br.right)/2 - crect.left
+    const y2 = (br.top + br.bottom)/2 - crect.top
+    out.push({ portIdx: i, x1, y1, x2, y2 })
+  }
+  return out
+})
 
 // initialize mapping if option provided
 watch(() => props.option, (o) => { if (o) autoAssign() })

@@ -1,6 +1,6 @@
 <template>
   <div class="app">
-    <h2>USRP X440 UI (Vue)</h2>
+    <h2>USRP X440 - wizard</h2>
     
     <OptionsGeneration v-if="!showHardware" @continue="openHardware" />
 
