@@ -12,13 +12,13 @@
     
 
     <section class="bottom-section">
-      <NetworkConnections class="network-section" />
-      <SampleRateOptions class="sample-rate-section" :option="option" />
+      <NetworkConnections ref="networkRef" class="network-section" />
+      <SampleRateOptions ref="sampleRateRef" class="sample-rate-section" :option="option" />
     </section>
 
     <div class="footer">
-      <Button label="Capture" @click="$emit('capture')"/>
-    </div>
+        <Button label="Capture" @click="handleCapture"/>
+      </div>
   </div>
 </template>
 
@@ -34,9 +34,78 @@ const props = defineProps({ option: { type: Object, default: null }, numPorts: {
 const emit = defineEmits(['close','capture','mapping-changed'])
 
 const portsRef = ref(null)
+const networkRef = ref(null)
+const sampleRateRef = ref(null)
+const mappingData = ref(null)
 
 function forwardMapping(payload){
+  mappingData.value = payload
   emit('mapping-changed', payload)
+}
+
+async function handleCapture(){
+  try{
+    const optionData = props.option || {}
+
+    // get mapping either from emitted payload or directly from child
+    let mapping = mappingData.value
+    if ((!mapping || Object.keys(mapping).length === 0) && portsRef.value && typeof portsRef.value.getMapping === 'function'){
+      mapping = portsRef.value.getMapping()
+    }
+
+    const portsObj = {}
+    if (mapping && mapping.partialToPorts){
+      const grouped = {}
+      for (const k in mapping.partialToPorts){
+        const parts = k.split(':')
+        const pi = Number(parts[0])
+        const si = Number(parts[1])
+        if (!grouped[pi]) grouped[pi] = []
+        grouped[pi][si] = (mapping.partialToPorts[k] || []).map(idx => idx + 1)
+      }
+
+      const numPartials = (props.option && (props.option.partial_options || props.option.partials) || []).length
+      for (let pi = 0; pi < numPartials; pi++){
+        const sis = []
+        // find all si for this pi
+        for (const k in mapping.partialToPorts){
+          const [ppi, psi] = k.split(':').map(Number)
+          if (ppi === pi) sis.push(psi)
+        }
+        const maxSi = sis.length > 0 ? Math.max(...sis) : -1
+        const count = maxSi + 1
+        const arr = []
+        for (let si = 0; si < count; si++){
+          const assigned = (grouped[pi] && grouped[pi][si]) ? grouped[pi][si] : []
+          arr.push({ [`Channel-${si+1}`]: assigned })
+        }
+        portsObj[`Partial-option-${pi+1}`] = arr
+      }
+    }
+
+    // network connections
+    let networkConfig = []
+    if (networkRef.value && typeof networkRef.value.getConfig === 'function') networkConfig = networkRef.value.getConfig()
+
+    // sample rate
+    let sampleConf = { mode: 'auto', manualValue: '' }
+    if (sampleRateRef.value && typeof sampleRateRef.value.getConfig === 'function') sampleConf = sampleRateRef.value.getConfig()
+    const sampleRateObj = { Automàtic: sampleConf.mode === 'auto', 'Sample-rate': Number(sampleConf.manualValue) || 0 }
+
+    const info = { Option: optionData, Ports: portsObj, Connections: networkConfig, 'Sample-rate': [sampleRateObj] }
+
+    const resp = await fetch('http://127.0.0.1:5000/api/save_capture', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(info) })
+    const data = await resp.json()
+    if (data.ok){
+      alert('Capture saved successfully')
+      emit('capture')
+    } else {
+      alert('Failed to save capture: ' + (data.message || 'unknown'))
+    }
+  } catch (e){
+    console.error(e)
+    alert('Error saving capture: ' + e.message)
+  }
 }
 
 // Automatically assign when this screen is mounted and whenever the option changes

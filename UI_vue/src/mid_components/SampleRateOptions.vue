@@ -76,6 +76,12 @@ function selectOption(opt){
 watch([selected, manualValue], () => {
   emit('update:sampleRate', { mode: selected.value, manualValue: manualValue.value })
 })
+
+function getConfig(){
+  return { mode: selected.value, manualValue: manualValue.value }
+}
+
+defineExpose({ getConfig })
 </script>
 
 

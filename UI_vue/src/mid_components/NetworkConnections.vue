@@ -86,6 +86,8 @@ async function validateAll(){
 function getConfig(){
   return rows.map(r => ({ name: r.name, ipA: r.ipA, ipB: r.ipB, connected: r.connected, validated: r.validated }))
 }
+
+defineExpose({ getConfig })
 </script>
 
 <style scoped>

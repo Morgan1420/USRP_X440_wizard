@@ -24,6 +24,7 @@ Backend/assistanceJSONs/filteredOptions.json
 Backend/assistanceJSONs/partialOptions.json
 Backend/assistanceJSONs/filters.json
 Backend/assistanceJSONs/usrpInfo.json
+Backend/assistanceJSONs/infoCaptura.json
 
 
 # Logs and misc

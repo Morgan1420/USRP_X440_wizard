@@ -374,7 +374,11 @@ onBeforeUnmount(() => {
   window.removeEventListener('pointerup', onPointerUp)
 })
 
-defineExpose({ autoAssign })
+function getMapping(){
+  return { portToPartial: portToPartial.value, partialToPorts: partialToPorts.value }
+}
+
+defineExpose({ autoAssign, getMapping })
 </script>
 
 <style scoped>

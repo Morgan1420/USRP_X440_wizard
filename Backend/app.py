@@ -22,15 +22,15 @@ MCR_TABLE_PATH = os.path.join(ASSIST_DIR, 'mcr_converter_rates_table.json')
 def read_json(p):
   # El try except és per si intentem llegir un JSON que encara no existeix
   try:
-    with open(p, 'r') as f:
+    with open(p, 'r', encoding='utf-8') as f:
       return json.load(f)
   except Exception:
     return None
 
 # Funció per escriure a JSONs
 def write_json(p, data):
-  with open(p, 'w') as f:
-    json.dump(data, f, indent=2)
+  with open(p, 'w', encoding='utf-8') as f:
+    json.dump(data, f, ensure_ascii=False, indent=2)
   return True
 
 
@@ -157,6 +157,25 @@ def validate_connections():
     traceback.print_exc()
     return jsonify({'ok': False, 'message': str(e)}), 500
     
+
+
+# Ruta per desar una captura (infoCaptura.json)
+@app.route('/api/save_capture', methods=['POST'])
+def save_capture():
+  try:
+    payload = request.get_json() or {}
+    if not payload:
+      return jsonify({'ok': False, 'message': 'Empty payload'}), 400
+    out_path = os.path.join(ASSIST_DIR, 'infoCaptura.json')
+    ok = write_json(out_path, payload)
+    if not ok:
+      return jsonify({'ok': False, 'message': 'Failed writing file'}), 500
+    print(f"Saved capture to {out_path}")
+    return jsonify({'ok': True, 'path': out_path})
+  except Exception as e:
+    print('Error saving capture:')
+    traceback.print_exc()
+    return jsonify({'ok': False, 'message': str(e)}), 500
 
 
 if __name__ == '__main__':

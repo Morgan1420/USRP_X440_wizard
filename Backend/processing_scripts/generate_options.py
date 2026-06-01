@@ -4,7 +4,7 @@ import math
 # Helper functions
 def readJSON(json_path):
     try:
-        with open(json_path, 'r') as file:
+        with open(json_path, 'r', encoding='utf-8') as file:
             data = json.load(file)
         return data
     except Exception as e:
@@ -13,8 +13,8 @@ def readJSON(json_path):
 
 def storeJSON(data, json_path):
     try:
-        with open(json_path, 'w') as file:
-            json.dump(data, file, indent=4, sort_keys=True)
+        with open(json_path, 'w', encoding='utf-8') as file:
+            json.dump(data, file, indent=4, sort_keys=True, ensure_ascii=False)
         print(f"Successfully saved data to {json_path}")
     except Exception as e:
         print(f"Error: saving JSON failed: {e}")
