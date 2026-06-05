@@ -18,6 +18,11 @@
         <div class="option-text">no es pot editar la freqüència de mostreig (Fs) de forma manual.</div>
       </div>
 
+      <div class="option-row">
+        <div class="option-text">Temps de captura (s):</div>
+        <div class="option-value"><input v-model="captureTime" type="number" min="0" class="manual-input" placeholder="e.g. 10" /></div>
+      </div>
+
     </div>
   </div>
 </template>
@@ -30,6 +35,7 @@ const emit = defineEmits(['update:sampleRate'])
 
 const selected = ref('auto')
 const manualValue = ref('')
+  const captureTime = ref('')
 
 // derive partials from option similarly to PortsConnections
 const partials = computed(() => {
@@ -73,12 +79,12 @@ function selectOption(opt){
   emit('update:sampleRate', { mode: selected.value, manualValue: manualValue.value })
 }
 
-watch([selected, manualValue], () => {
-  emit('update:sampleRate', { mode: selected.value, manualValue: manualValue.value })
-})
+ watch([selected, manualValue, captureTime], () => {
+  emit('update:sampleRate', { mode: selected.value, manualValue: manualValue.value, captureTime: captureTime.value })
+ })
 
 function getConfig(){
-  return { mode: selected.value, manualValue: manualValue.value }
+  return { mode: selected.value, manualValue: manualValue.value, captureTime: captureTime.value }
 }
 
 defineExpose({ getConfig })

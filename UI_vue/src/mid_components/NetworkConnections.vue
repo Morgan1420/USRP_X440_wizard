@@ -2,19 +2,19 @@
   <div class="network-connections">
     <h4>Connexions QSFP28</h4>
     <div class="network-grid">
-      <div class="header-row">
-        <div class="col name">Connexió:</div>
-        <div class="col ip">Adreça IP:</div>
-        <div class="col connected">Estan connectats?</div>
-        <div class="col validated">La connexió és vàlida?</div>
-      </div>
+          <div class="header-row">
+            <div class="col name">Connexió:</div>
+            <div class="col ip">Adreça IP:</div>
+            <div class="col connected">Estan connectats?</div>
+            <div class="col validated">La connexió és vàlida?</div>
+          </div>
 
-      <div class="row" v-for="(r, i) in rows" :key="i">
-        <div class="col name">{{ r.name }}</div>
-        <div class="col ip"><input v-model="r.ipA" type="text" placeholder="0.0.0.0" /></div>
-        <div class="col connected"><button :class="{on:r.connected}" @click="toggleConnected(i)">{{ r.connected ? 'Yes' : 'No' }}</button></div>
-        <div class="col validated"> <span :class="{ok: r.validated === 'Si', invalid: r.validated === 'No', validating: r.validated === 'validant...'}">{{ r.validated || '-' }}</span> </div>
-      </div>
+          <div class="row" v-for="(r, i) in rows" :key="i">
+            <div class="col name">{{ r.name }}</div>
+            <div class="col ip"><input v-model="r.ipAddr" type="text" placeholder="0.0.0.0" /></div>
+            <div class="col connected"><button :class="{on:r.connected}" @click="toggleConnected(i)">{{ r.connected ? 'Yes' : 'No' }}</button></div>
+            <div class="col validated"> <span :class="{ok: r.validated === 'Si', invalid: r.validated === 'No', validating: r.validated === 'validant...'}">{{ r.validated || '-' }}</span> </div>
+          </div>
 
       <div class="actions">
         <button @click="validateAll">Validar Connexions</button>
@@ -29,7 +29,7 @@ import { reactive } from 'vue'
 const props = defineProps({ rowsCount: { type: Number, default: 2 } })
 
 const rows = reactive([])
-for (let i = 0; i < props.rowsCount; i++) rows.push({ name: `QSFP28_${i+1}`, ipA: '', ipB: '', connected: false, validated: '-' })
+for (let i = 0; i < props.rowsCount; i++) rows.push({ name: `QSFP28_${i+1}`, ipAddr: '', connected: false, validated: '-' })
 
 function toggleConnected(i){ rows[i].connected = !rows[i].connected;}
 
@@ -41,18 +41,18 @@ function isIPv4(ip){
 
 async function validateAll(){
   const toValidate = []
-  rows.forEach(r => {
-    if (!r.connected) {
-      r.validated = '-'
-      return
-    }
-    if (!isIPv4(r.ipA) && !isIPv4(r.ipB)) {
-      r.validated = 'No'
-      return
-    }
-    r.validated = 'validant...'
-    toValidate.push({ name: r.name, ipA: r.ipA, ipB: r.ipB, connected: r.connected })
-  })
+    rows.forEach(r => {
+      if (!r.connected) {
+        r.validated = '-'
+        return
+      }
+      if (!isIPv4(r.ipAddr)) {
+        r.validated = 'No'
+        return
+      }
+      r.validated = 'validant...'
+      toValidate.push({ name: r.name, ipAddr: r.ipAddr, connected: r.connected })
+    })
   
   if (toValidate.length === 0) return
 
@@ -84,7 +84,7 @@ async function validateAll(){
 }
 
 function getConfig(){
-  return rows.map(r => ({ name: r.name, ipA: r.ipA, ipB: r.ipB, connected: r.connected, validated: r.validated }))
+  return rows.map(r => ({ name: r.name, ipAddr: r.ipAddr, connected: r.connected, validated: r.validated }))
 }
 
 defineExpose({ getConfig })

@@ -90,7 +90,7 @@ async function handleCapture(){
     // sample rate
     let sampleConf = { mode: 'auto', manualValue: '' }
     if (sampleRateRef.value && typeof sampleRateRef.value.getConfig === 'function') sampleConf = sampleRateRef.value.getConfig()
-    const sampleRateObj = { Automàtic: sampleConf.mode === 'auto', 'Sample-rate': Number(sampleConf.manualValue) || 0 }
+    const sampleRateObj = { Automàtic: sampleConf.mode === 'auto', 'Sample-rate': Number(sampleConf.manualValue) || 0, 'Temps de captura': Number(sampleConf.captureTime) || 0 }
 
     const info = { Option: optionData, Ports: portsObj, Connections: networkConfig, 'Sample-rate': [sampleRateObj] }
 

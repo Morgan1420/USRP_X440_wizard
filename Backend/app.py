@@ -117,16 +117,13 @@ def validate_connections():
     for r in rows:
       name = r.get('name')
       connected = bool(r.get('connected'))
-      ipA = r.get('ipA') or None
-      ipB = r.get('ipB') or None
+      ipAddr = r.get('ipAddr') or None
 
       if not connected:
-        statusA = '-'
-        statusB = '-'
         status = '-'
       else:
         # Delegate validation to USRP handler which returns per-ip info
-        res = usrp_handler.validateConnectionToTheUSRP(ipA, ipB)
+        res = usrp_handler.validateConnectionToTheUSRP(ipAddr)
 
         def _map_human(v):
           if v is True:
@@ -135,18 +132,11 @@ def validate_connections():
             return 'No'
           return '-'
 
-        statusA = _map_human(res.get('ipA'))
-        statusB = _map_human(res.get('ipB'))
-
-        # overall status: 'Si' if any channel is valid, otherwise 'No'
-        status = 'Si' if (res.get('ipA') is True or res.get('ipB') is True) else 'No'
+        status = _map_human(res.get('ipAddr'))
 
       results.append({
         'name': name,
-        'ipA': ipA,
-        'ipB': ipB,
-        'statusA': statusA,
-        'statusB': statusB,
+        'ipAddr': ipAddr,
         'status': status
       })
 
