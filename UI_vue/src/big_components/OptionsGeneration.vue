@@ -7,7 +7,7 @@
   </div>
 
   <div class="buttons-display">
-    <Button label="Generar Opcions" variant="primary" @click="onGenerate" />
+    <Button label="Generate Options" variant="primary" @click="onGenerate" />
     
     <!-- NO TOCAR: Poso 2 botons perquè la variable showFilter es tornava boja en fer un toggle -->
     <Button v-if="!showFilter" label="Filters" variant="secondary" @click="openFilterPopUp" />
@@ -22,7 +22,7 @@
   <OptionDetails v-if="showDetails" :option="detailOption" @close="closeDetail" />
 
   <div class="buttons-display">
-    <Button label="Continuar amb l'opció seleccionada" variant="primary" @click="onContinue" />
+    <Button label="Continue with the selected choice" variant="primary" @click="onContinue" />
   </div>
 
 </div>
@@ -56,7 +56,7 @@ function onContinue() {
   }catch(e){ /* ignore */ }
 
   if (!option) {
-    alert('Cal seleccionar una opció primer: fes clic en una fila o prem "Mostra" per obrir els detalls.')
+    alert('Please select an option first: click on a row or press "Show" to open the details.')
     return
   }
   emit('continue', option)
@@ -69,7 +69,7 @@ function onGenerate() {
 
   // Validem els valors
   if (fc == null || bw == null) {
-    alert('Error: Cal introduir valors vàlids per Fc i BW.')
+    alert('Error: Please enter valid values for Fc and BW.')
     return
   }
   
@@ -94,11 +94,11 @@ function onGenerate() {
     })
     .catch(e => {
       console.error(e)
-      alert('Error: Generació fallida')
+      alert('Error: Generation failed')
     })
   }catch(e) {
     console.error(e)
-    alert('Error: Generació fallida')
+    alert('Error: Generation failed')
   }
   
   

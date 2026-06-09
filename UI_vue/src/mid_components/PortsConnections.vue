@@ -5,7 +5,7 @@
       <h4>Ports</h4>
 
       <div class="USRP-represent">
-        <div class="h5">Representació dels ports de la USRP x440:</div>
+        <div class="h5">Port representation of the USRP x440:</div>
         <div class="ports-box">
           <div class="empty-port"></div>
           <div v-for="i in leftCount" :key="'left-'+i" class="port" :ref="el => setPortRef(el, i-1)" :class="{assigned: portToPartial[i-1] != null}" @pointerdown.prevent="startDragFromPort(i-1, $event)">{{ portLabels[i-1] }}</div>
@@ -15,10 +15,10 @@
         </div>
       </div>
     <div class="zones-container">
-      <div class="h5">Display dels canals de cadascuna de les opcions parcials:</div>
+      <div class="h5">Display of the channels for each of the partial options:</div>
       <div class="partial-options-zones" v-if="partials && partials.length">
         <div class="partial-option" v-for="(p, pi) in partials" :key="p.option_id ?? pi">
-          <div class="partial-title">Opció: {{ pi + 1 }}</div>
+          <div class="partial-title">Option: {{ pi + 1 }}</div>
           <div class="partial-ports">
             <div class="partial-port" v-for="(port, si) in computePorts(p)" :key="si">
               <div class="dot-port" :ref="el => setPartialRef(el, pi, si)" @pointerdown.prevent="startDragFromPartial(pi, si, $event)"></div>
@@ -177,11 +177,11 @@ function assignPortToPartial(portIdx, pi, si){
   // enforce 2-partial partitioning rule: when exactly 2 partials, restrict port domains
   if (partials.value.length === 2) {
     if (pi === 0 && portIdx >= Math.floor(props.numPorts/2)){
-      alert('L\'opció parcial 1 només es pot connectar als primers 4 ports')
+      alert(' The partial option 1 can only be connected to the first 4 ports')
       return
     }
     if (pi === 1 && portIdx < Math.floor(props.numPorts/2)){
-      alert('L\'opció parcial 2 només es pot connectar als últims 4 ports')
+      alert(' The partial option 2 can only be connected to the last 4 ports')
       return
     }
   }
@@ -210,7 +210,7 @@ function assignPortToPartial(portIdx, pi, si){
           }
         }
         if (stolen == null){
-          alert(' No es pot reassignar: l\'opció parcial anterior doncs es quedaria desconnectada i no hi ha ports disponibles.')
+          alert(' Can not reassign: the previous partial option would be left disconnected and there are no available ports.')
           return
         }
       }
@@ -230,7 +230,7 @@ function removeConnection(portIdx){
   if (prev == null) return
   const arr = partialToPorts.value[prev] || []
   if (arr.length <= 1){
-    alert('No es pot eliminar la darrera connexió per aquest port parcial.')
+    alert('Can not remove the last connection for this partial port.')
     return
   }
   partialToPorts.value[prev] = arr.filter(x => x !== portIdx)
@@ -312,7 +312,7 @@ function autoAssign(){
 
   if (unassigned.length > 0){
     // Inform user that not all bands could be connected
-    alert(`No hi ha ports disponibles per connectar ${unassigned.length} canals; deixats sense assignar.`)
+    alert(`Can not connect ${unassigned.length} channels; left unassigned.`)
   }
 
   emit('mapping-changed', { portToPartial: portToPartial.value, partialToPorts: partialToPorts.value })

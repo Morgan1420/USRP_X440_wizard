@@ -3,10 +3,10 @@
     <h4>Connexions QSFP28</h4>
     <div class="network-grid">
           <div class="header-row">
-            <div class="col name">Connexió:</div>
-            <div class="col ip">Adreça IP:</div>
-            <div class="col connected">Estan connectats?</div>
-            <div class="col validated">La connexió és vàlida?</div>
+            <div class="col name">Connection:</div>
+            <div class="col ip">IP Address:</div>
+            <div class="col connected">Are Connected?</div>
+            <div class="col validated">Is Connection Validated?</div>
           </div>
 
           <div class="row" v-for="(r, i) in rows" :key="i">
@@ -17,7 +17,7 @@
           </div>
 
       <div class="actions">
-        <button @click="validateAll">Validar Connexions</button>
+        <button @click="validateAll">Validate Connections</button>
       </div>
     </div>
   </div>

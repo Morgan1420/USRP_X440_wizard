@@ -87,8 +87,21 @@ async function onFilterSave(obj) {
 </script>
 
 <style scoped>
-.app { padding:20px; font-family: Arial, Helvetica, sans-serif; }
+.app { font-family: Arial, Helvetica, sans-serif; }
 .top-row { display:flex; align-items:center; gap:12px; }
 .buttons { display:flex; gap:8px; align-items:center; margin-left:8px; }
 .status { margin-top:12px; color: #333; }
+
+h2 {
+  top: 0;
+  margin: 0;
+  margin-left: -12px;
+  margin-top: -12px;
+  padding: 32px;
+  width: 100%;
+  text-align: center;
+  font-size: 35px;
+  color: #3c3c3c;
+  background: #c7defb;
+}
 </style>

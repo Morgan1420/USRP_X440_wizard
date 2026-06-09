@@ -7,7 +7,7 @@
 
     <div class="list-header">
       <div class="col id-col">ID</div>
-      <div class="col num-po-col"># Opcions parcials</div>
+      <div class="col num-po-col"># Partial Options</div>
       <div class="col num-po-col"># Chans</div>
       <div class="col partial-options-col">
         <div class="po-col-title">Partial Option 1</div>
@@ -25,7 +25,7 @@
           <div>Channels</div>
         </div>
       </div>
-      <div class="col info-col">Més informació</div>
+      <div class="col info-col">More Info</div>
     </div>
 
     <div class="list" ref="listRef">
@@ -51,7 +51,7 @@
               <div>{{ getChans(item, 1) }}</div>
             </div>
           </div>
-          <div class="col info-col"><button class="show-btn" @click.stop="showDetails(item, i)">Mostra</button></div>
+          <div class="col info-col"><button class="show-btn" @click.stop="showDetails(item, i)">Show</button></div>
         </div>
       </div>
     </div>

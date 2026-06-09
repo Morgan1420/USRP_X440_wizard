@@ -4,7 +4,7 @@
     <div class="options-grid">
       <div class="option-row">
         <div class="select-box" :class="{selected: selected === 'auto'}" @click="selectOption('auto')"></div>
-        <div class="option-value">Automàtic</div>
+        <div class="option-value">Automatic</div>
       </div>
 
       <div class="option-row" v-if="showManual">
@@ -14,12 +14,12 @@
       </div>
 
       <div class="option-row-text" v-else>
-        <div class="option-text">Per a opcions amb un canal o més de >200MHz d'amplada de banda </div>
-        <div class="option-text">no es pot editar la freqüència de mostreig (Fs) de forma manual.</div>
+        <div class="option-text">For options with one channel or more than 200MHz of bandwidth</div>
+        <div class="option-text">the sample rate (Fs) cannot be edited manually.</div>
       </div>
 
       <div class="option-row">
-        <div class="option-text">Temps de captura (s):</div>
+        <div class="option-text" style="color: black;">Capture Time (s):</div>
         <div class="option-value"><input v-model="captureTime" type="number" min="0" class="manual-input" placeholder="e.g. 10" /></div>
       </div>
 

@@ -22,12 +22,12 @@
           <div class="partial-meta-1">
             <div><strong>MCR <i>(Master Clock Rate)</i>: </strong>{{ p?.mcr_mhz ?? '' }} MHz</div>
             <div><strong>Fs <i>(Converter Sample Rate)</i>: </strong>{{ p?.fcr_ghz ?? '' }} GHz</div>
-            <div><strong>Canals necessaris:</strong> {{ p?.chans_needed ?? '' }}</div>
+            <div><strong>Channels needed:</strong> {{ p?.chans_needed ?? '' }}</div>
           </div>
           <div class="partial-meta-2">
-            <div><strong>Freqüència Inicial</strong> {{ p?.f_start ?? '' }}</div>
-            <div><strong>Freqüència Final</strong> {{ p?.f_end ?? '' }}</div>
-            <div><strong>Zona de Nyquist:</strong> {{ p?.nyquist_zone ?? '' }}</div>
+            <div><strong>Initial Frequency</strong> {{ p?.f_start ?? '' }}</div>
+            <div><strong>Final Frequency</strong> {{ p?.f_end ?? '' }}</div>
+            <div><strong>Nyquist Zone:</strong> {{ p?.nyquist_zone ?? '' }}</div>
           </div>
           <Plot class="plot-partial" :option="option" :currentPartial="getPartialId(p, idx)" :width="plotWidth" :height="140" />
         </div>
