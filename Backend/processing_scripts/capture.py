@@ -1,40 +1,229 @@
 import uhd
+import subprocess
 import sys
 import time
+import json
+import os
 import numpy as np
 
 BYTES_PER_SAMP = 4  # sc16 over the wire = 4 bytes per sample
 
-mcrs = [1024e6, 1280e6]
-fcrs = [0.9e9, 2e9]
 
+
+# Funció que llegeix un fitxer JSON i retorna el contingut en un diccionari
+def getArgs(file_name="infoCaptura.json"):
+  base_dir = os.path.dirname(os.path.dirname(__file__))
+  json_path = os.path.join(base_dir, "assistanceJSONs", file_name)
+  with open(json_path, "r", encoding="utf-8") as fh:
+    return json.load(fh)
+
+# Funció per obtenir la imatge de la FPGA actual
+def getImageFPGA(ip_addr: str) -> str:
+
+  # Creem una comanda uhd_usrp_probe per descobrir la imatge a partir del text resultant
+  cmd = ["uhd_usrp_probe", "--args", f"type=x4xx,addr={ip_addr}"]
+    
+  # Fem un try except per si passes res amb la comanda
+  try:
+    
+    print("[FPGA] Buscant el nom de la imatge de la FPGA...")
+    # Executem el probe i capturem tota la sortida de la línia de comandes
+    result = subprocess.run(cmd, check=True, text=True, capture_output=True)
+    text_complet = result.stdout + result.stderr
+        
+    # Busquem el patró "fpga=NOM" o "fpga: NOM" que imprimeix l'MPM i UHD
+    match = re.search(r"fpga[:=]\s*([a-zA-Z0-9_]+)", text_complet, re.IGNORECASE)
+    if match:
+      print(f"[FPGA] La imatge de la FPGA actual és: {match.group(1)}")
+      return match.group(1)
+    print("[FPGA] No s'ha pogut trobar el nom de la imatge")
+  except subprocess.CalledProcessError as e:
+    print(f"[ERROR - FPGA] Error en executar uhd_usrp_probe: {e.stderr}")
+    # Tornem un guió en cas de no trobar la imatge
+    return "-"
+
+  # Tornem un guió en cas de no trobar la imatge
+  return "-"
+    
+# Funció per canviar la imatge de la FPGA
+def changeImageFPGA(ip_addr: str, imatge: str):
+  # Construïm la comanda en base a les 
+  cmd = [
+    "uhd_image_loader",
+    "--args",
+    f"type=x4xx,addr={ip_addr},fpga={imatge}"
+  ]
+  
+  # Notifiquem a l'usuari
+  print(f"[FPGA] Iniciant la càrrega de la imatge '{imatge}' a l'USRP ({ip_addr})...")
+  print("[FPGA] Això pot trigar uns minuts i la connexió es perdrà temporalment.")
+    
+  # Fem un try except per si hi hagués cap problema
+  try:
+    # Executem la comanda
+    result = subprocess.run(cmd, check=True, text=True, capture_output=True)
+    
+    # Reiniciem la USRP
+    print("[FPGA] Reiniciant USRP, cal esperar 30s...")
+    time.sleep(30) # Donem marge al Linux intern de l'X440 per tornar a arrencar
+    
+    # Notifiquem a l'usuari
+    print(f"[FPGA] Imatge pujada correctament\n[FPGA] Detalls de la càrrega:\n{result.stdout}")
+     
+        
+  except subprocess.CalledProcessError as e:
+    print(f"[ERROR - FPGA] Error en carregar la imatge '{imatge}': {e.stderr}")
+    raise RuntimeError("[ERROR - FPGA] No s'ha pogut actualitzar l'FPGA de l'USRP.")
+
+
+# Funció main
 def main():
-    dev_args = f"addr=192.168.10.2,product=x440,master_clock_rate=({mcrs[0]};{mcrs[1]})"
+    
+  # ------------------------- 1) Extraient i preparant variables de captura
+  print("[CAPTURA] - Preparant dades per a la captura...\n")
+  # Llegim el JSON
+  capture_data = getArgs()
+    
+  # Adreça IP
+  ip_addrs = []
+  qsfp_connected = [False, False]
+  
+  for inx, connection in enumerate(capture_data["Connections"]):
+    if(connection["connected"] == True and connection["validated"] == "Yes"):
+      ip_addrs.append(connection["ipAddr"])
+      qsfp_connected[inx] = True
+    
+  if len(ip_addrs) == 0:
+    print("Error: No s'ha trobat cap connexió validada.")
+    return # error
+  else:
+    # Agafem la primera adreça com a principal
+    ip_addr = ip_addrs[0]
+    
+    
+  # Multi capture flag
+  multi_capture_f = len(capture_data["Option"]["partial_options"]) == 2
+  
+  
+  # Master clock rates i FCRs
+  mcrs = [ capture_data["Option"]["partial_options"][0]["mcr_mhz"] * 1e6]
+  fcrs = [ capture_data["Option"]["partial_options"][0]["fcr_ghz"] * 1e9]
+  if multi_capture_f:
+    mcrs.append(capture_data["Option"]["partial_options"][1]["mcr_mhz"] * 1e6)
+    fcrs.append(capture_data["Option"]["partial_options"][1]["fcr_ghz"] * 1e9)
+  else:
+    # Si només hi ha una opció, dupliquem els paràmetres
+    mcrs.append(mcrs[0])
+    fcrs.append(fcrs[0])
 
-    graph = uhd.rfnoc.RfnocGraph(dev_args)
 
-    radio0 = uhd.rfnoc.RadioControl(graph.get_block("0/Radio#0"))
-    radio1 = uhd.rfnoc.RadioControl(graph.get_block("0/Radio#1"))
+  # Canals i freqüències centrals
+  channels = []
+  frequencies_per_channel = {} 
+  
+  for idx, channel in enumerate(capture_data["Ports"]["Partial-option-1"]):
+    channels.append(channel[f"Channel-{idx+1}"][0])
+    frequencies_per_channel[int(channel[f'Channel-{idx+1}'][0])] = float(f"{channel['f_center']}")
+    
+  if(multi_capture_f):
+    # En cas de tindre més d'un canal capturem les dades dels dos
+    for idx, channel in enumerate(capture_data["Ports"]["Partial-option-2"]):
+      channels.append(channel[f"Channel-{idx+1}"][0])
+      frequencies_per_channel[int(channel[f'Channel-{idx+1}'][0])] = float(f"{channel['f_center']}")
+  
+  # Separem quins canals van a cada ràdio física per facilitar la lògica posterior
+  ch_radio0 = [ch for ch in channels if ch <= 4]  # Canals del 1 al 4 (Indexats a nivell de placa)
+  ch_radio1 = [ch for ch in channels if ch > 4]   # Canals del 5 al 8
+  
+  
+  # Sample rate
+  user_sample_rate_f = capture_data["Sample-rate"][0]["Automàtic"]
+  user_sample_rate = capture_data["Sample-rate"][0]["Sample-rate"] * 1e6 # en Hz, potser cal canviar el multiplicador
+  
+  # Print dades de captura - per fer
+  print(f"Adreça IP: {ip_addr}")
+  print(f"Multi-capture: {multi_capture_f}")
+  print(f"Master clock rates: {mcrs} Hz")
+  print(f"Frequencies of conversion: {fcrs} GHz")
+  print(f"Channels: {channels}")
+  print(f"Frequencies per canal: {frequencies_per_channel}")
+  print(f"Sample rate: {user_sample_rate} Sps\n")
+  
+  
+  # ------------------------- 2) Configurant la FPGA
+  return
+  print("[CAPTURA] - CONFIGURANT LA FPGA")
+  
+  # Mirem quina és la imatge de la FPGA actual
+  current_fpga = getImageFPGA(ip_addr=ip_addr)
+  has_DRAM = False # Amb DRAM només cal un port, sense mínim hi han d'haver 2
+  
+  # Triem la imatge de la FPGA més convenient
+  if max(mcrs) <= 200e6 and user_sample_rate_f and qsfp_connected[0]:
+    has_DRAM = True
+    if current_fpga != "X4_200":
+      changeImageFPGA(ip_addr=ip_addr, imatge="X4_200")
+  elif max(mcrs) <= 512e6 and qsfp_connected[0] and qsfp_connected[1]:
+    if current_fpga != "CG_400":
+      changeImageFPGA(ip_addr=ip_addr, imatge="CG_400")
+  elif max(mcrs) <= 512e6 and qsfp_connected[0]:
+    has_DRAM = True
+    if current_fpga != "X4_400":
+      changeImageFPGA(ip_addr=ip_addr, imatge="X4_400")
+  elif min(mcrs) >= 1000e6 and qsfp_connected[0] and qsfp_connected[1]:
+    if current_fpga != "CG_1600":
+      changeImageFPGA(ip_addr=ip_addr, imatge="CG_1600")
+  elif min(mcrs) >= 1000e6 and qsfp_connected[0]:
+    has_DRAM = True
+    if current_fpga != "X4_1600":
+      changeImageFPGA(ip_addr=ip_addr, imatge="X4_1600")
+  else:
+    raise RuntimeError("[ERROR - CAPTURA] No s'ha trobat cap imatge de FPGA compatible amb els paràmetres de captura i connexions QSFP detectades.")
 
-    replay0 = uhd.rfnoc.ReplayBlockControl(graph.get_block("0/Replay#0"))
-    replay1 = uhd.rfnoc.ReplayBlockControl(graph.get_block("0/Replay#1"))
+  print("[CAPTURA] FPGA configurada correctament\n")
+  
+  
+  # ------------------------- 3) Configurant les radios dels dispositius
+  # Configurem les freqüències centrals de cada canal
+    
+  # Creem el ...
+  dev_args = f"addr={ip_addr},product=x440,master_clock_rate=({mcrs[0]};{mcrs[1]})"
+  graph = uhd.rfnoc.RfnocGraph(dev_args)
 
-    radio0_frequency = fcrs[0]
-    radio1_frequency = fcrs[1]
+  # Configurem els canals 
+  radio0 = uhd.rfnoc.RadioControl(graph.get_block("0/Radio#0"))
+  radio1 = uhd.rfnoc.RadioControl(graph.get_block("0/Radio#1"))
 
-    radio0.set_rx_frequency(radio0_frequency, 0)
-    radio1.set_rx_frequency(radio1_frequency, 0)
+  replay0 = uhd.rfnoc.ReplayBlockControl(graph.get_block("0/Replay#0"))
+  replay1 = uhd.rfnoc.ReplayBlockControl(graph.get_block("0/Replay#1"))
 
-    graph.connect(radio0.get_unique_id(), 0, replay0.get_unique_id(), 0)
-    graph.connect(radio1.get_unique_id(), 0, replay1.get_unique_id(), 0)
+   
+  # Configurem les freqüències de conversió de dades de cada canal
+  radio0_frequency = fcrs[0]
+  radio1_frequency = fcrs[1]
+    
+   
+  # Configurem cadascun dels canals
+  for idx, channel in enumerate(channels):
+      if channel <= 4 :
+          radio0.set_rx_frequency(frequencies[idx], channel)
+      else:
+          radio1.set_rx_frequency(frequencies[idx], channel-4)
+   
+  graph.connect(radio0.get_unique_id(), 0, replay0.get_unique_id(), 0)
+  graph.connect(radio1.get_unique_id(), 0, replay1.get_unique_id(), 0)
 
-    throttle = 0.2
-    num_ports = 1
-    cap_dtype = np.complex64
+  # Configurem els streamers per descarregar les captures a host després de la captura
+  throttle = 0.2
+  num_ports = 1
+  cap_dtype = np.complex64
 
-    stream_args = uhd.usrp.StreamArgs("fc32", "sc16")
-    stream_args.args["throttle"] = str(throttle)
-
+  stream_args = uhd.usrp.StreamArgs("fc32", "sc16")
+  stream_args.args["throttle"] = str(throttle)
+  
+  return
+    
+  '''
     # Set up streamer0
     rx_streamer0 = graph.create_rx_streamer(num_ports, stream_args)
     graph.connect(replay0.get_unique_id(), 0, rx_streamer0, 0)
@@ -152,6 +341,7 @@ def main():
     output_buf_replay0.tofile("capture_radio0.iq")
     output_buf_replay1.tofile("capture_radio1.iq")
     print("Success! Saved 'capture_radio0.iq' and 'capture_radio1.iq'.")
-
+    '''
+    
 if __name__ == "__main__":
     sys.exit(not main())

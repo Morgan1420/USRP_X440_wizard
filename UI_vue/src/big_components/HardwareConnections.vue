@@ -38,6 +38,24 @@ const networkRef = ref(null)
 const sampleRateRef = ref(null)
 const mappingData = ref(null)
 
+// Helper to split a partial option into its sub-channels (center freq + bw)
+function computePortsForPartial(p){
+  const fs = Number(p?.f_start ?? p?.[0] ?? 0)
+  const fe = Number(p?.f_end ?? p?.[1] ?? 0)
+  const num = Math.max(1, Number(p?.chans_needed ?? p?.chansNeeded ?? p?.chans ?? 1))
+  const total = Math.max(0, fe - fs)
+  const piece = num > 0 ? total / num : total
+  const out = []
+  for (let i = 0; i < num; i++){
+    const s = fs + i * piece
+    const e = (i < num - 1) ? s + piece : fe
+    const center = (s + e) / 2
+    const bw = Math.abs(e - s)
+    out.push({ f_start: s, f_end: e, f_center: center, bw: bw })
+  }
+  return out
+}
+
 function forwardMapping(payload){
   mappingData.value = payload
   emit('mapping-changed', payload)
@@ -64,20 +82,24 @@ async function handleCapture(){
         grouped[pi][si] = (mapping.partialToPorts[k] || []).map(idx => idx + 1)
       }
 
-      const numPartials = (props.option && (props.option.partial_options || props.option.partials) || []).length
-      for (let pi = 0; pi < numPartials; pi++){
+      const partials = (props.option && (props.option.partial_options || props.option.partials) || [])
+      for (let pi = 0; pi < partials.length; pi++){
+        const p = partials[pi] || {}
+        const portsMeta = computePortsForPartial(p)
+
         const sis = []
         // find all si for this pi
         for (const k in mapping.partialToPorts){
           const [ppi, psi] = k.split(':').map(Number)
           if (ppi === pi) sis.push(psi)
         }
-        const maxSi = sis.length > 0 ? Math.max(...sis) : -1
-        const count = maxSi + 1
+        const maxSi = sis.length > 0 ? Math.max(...sis) : (portsMeta.length > 0 ? portsMeta.length - 1 : -1)
+        const count = Math.max(portsMeta.length, maxSi + 1)
         const arr = []
         for (let si = 0; si < count; si++){
           const assigned = (grouped[pi] && grouped[pi][si]) ? grouped[pi][si] : []
-          arr.push({ [`Channel-${si+1}`]: assigned })
+          const meta = portsMeta[si] || { f_center: null, bw: null }
+          arr.push({ [`Channel-${si+1}`]: assigned, f_center: meta.f_center, bw: meta.bw })
         }
         portsObj[`Partial-option-${pi+1}`] = arr
       }
