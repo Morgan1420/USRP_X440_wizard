@@ -182,36 +182,74 @@ def main():
 
   print("[CAPTURA] FPGA configurada correctament\n")
   
-  return
+
   # ------------------------- 3) Configurant les radios dels dispositius
-  # Configurem les freqüències centrals de cada canal
-    
+  print("[CAPTURA] - Configurarnt els blocs RFNOC\n")
+  
+
   # Creem el ...
-  dev_args = f"addr={ip_addr},product=x440,master_clock_rate=({mcrs[0]};{mcrs[1]})"
+  dev_args = f"addr={ip_addr},product=x440,master_clock_rate=({mcrs[0]};{mcrs[1]}),converter_rate=({fcrs[0]};{fcrs[1]})"
   graph = uhd.rfnoc.RfnocGraph(dev_args)
 
-  # Configurem els canals 
+  # Configurem els blocs de radio 
   radio0 = uhd.rfnoc.RadioControl(graph.get_block("0/Radio#0"))
   radio1 = uhd.rfnoc.RadioControl(graph.get_block("0/Radio#1"))
 
-  replay0 = uhd.rfnoc.ReplayBlockControl(graph.get_block("0/Replay#0"))
-  replay1 = uhd.rfnoc.ReplayBlockControl(graph.get_block("0/Replay#1"))
+  # Sintonitzem les freqüències RF segons la distribució
+  for ch in ch_radio0:
+      radio0.set_rx_frequency(frequencies_per_channel[ch], ch - 1)
+  for ch in ch_radio1:
+      radio1.set_rx_frequency(frequencies_per_channel[ch], ch - 5) 
+   
+  # Variables comunes d'streaming
+  stream_args = uhd.usrp.StreamArgs("fc32", "sc16")
+  cap_dtype = np.complex64
+  
+  if has_DRAM:
+    # --- RUTA 1: RUTA AMB DRAM (Imatges X4_) ---
+    print("[CAPTURA] Configurant la ruta passant per la memòria DRAM (Replay Block)")
+      
+    replay0 = uhd.rfnoc.ReplayBlockControl(graph.get_block("0/Replay#0"))
+    replay1 = uhd.rfnoc.ReplayBlockControl(graph.get_block("0/Replay#1"))
+      
+    # Connectem la Radio al Replay
+    for ch in ch_radio0:
+      graph.connect(radio0.get_unique_id(), ch - 1, replay0.get_unique_id(), ch - 1)
+    for ch in ch_radio1:
+      graph.connect(radio1.get_unique_id(), ch - 5, replay1.get_unique_id(), ch - 5)
+          
+    # Connectem el Replay al Host (nosaltres)
+    rx_streamer0 = graph.create_rx_streamer(len(ch_radio0), stream_args) if ch_radio0 else None
+    for i, ch in enumerate(ch_radio0):
+      graph.connect(replay0.get_unique_id(), ch - 1, rx_streamer0, i)
+      
+    rx_streamer1 = graph.create_rx_streamer(len(ch_radio1), stream_args) if ch_radio1 else None
+    for i, ch in enumerate(ch_radio1):
+      graph.connect(replay1.get_unique_id(), ch - 5, rx_streamer1, i)
+  
+  else:
+    # --- RUTA 2: RUTA STREAMING DIRECTE (Imatges CG_) ---
+    print("[CAPTURA] Configurant la ruta d'streaming directe al host (Sense DRAM)")
+      
+    rx_streamer0 = graph.create_rx_streamer(len(ch_radio0), stream_args) if ch_radio0 else None
+    for i, ch in enumerate(ch_radio0):
+      graph.connect(radio0.get_unique_id(), ch - 1, rx_streamer0, i)
 
-   
-  # Configurem les freqüències de conversió de dades de cada canal
-  radio0_frequency = fcrs[0]
-  radio1_frequency = fcrs[1]
-    
-   
-  # Configurem cadascun dels canals
-  for idx, channel in enumerate(channels):
-      if channel <= 4 :
-          radio0.set_rx_frequency(frequencies[idx], channel)
-      else:
-          radio1.set_rx_frequency(frequencies[idx], channel-4)
-   
+    rx_streamer1 = graph.create_rx_streamer(len(ch_radio1), stream_args) if ch_radio1 else None
+    for i, ch in enumerate(ch_radio1):
+      graph.connect(radio1.get_unique_id(), ch - 5, rx_streamer1, i)
+  
+  graph.commit()
+  print("[CAPTURA] Graf validat i bloquejat.")
+  
+  return
+  
+  
   graph.connect(radio0.get_unique_id(), 0, replay0.get_unique_id(), 0)
   graph.connect(radio1.get_unique_id(), 0, replay1.get_unique_id(), 0)
+
+
+  
 
   # Configurem els streamers per descarregar les captures a host després de la captura
   throttle = 0.2
