@@ -5,6 +5,7 @@ import time
 import json
 import os
 import numpy as np
+import re
 
 BYTES_PER_SAMP = 4  # sc16 over the wire = 4 bytes per sample
 
@@ -151,7 +152,6 @@ def main():
   
   
   # ------------------------- 2) Configurant la FPGA
-  return
   print("[CAPTURA] - CONFIGURANT LA FPGA")
   
   # Mirem quina és la imatge de la FPGA actual
@@ -159,7 +159,7 @@ def main():
   has_DRAM = False # Amb DRAM només cal un port, sense mínim hi han d'haver 2
   
   # Triem la imatge de la FPGA més convenient
-  if max(mcrs) <= 200e6 and user_sample_rate_f and qsfp_connected[0]:
+  if max(mcrs) <= 200e6 and not user_sample_rate_f and qsfp_connected[0]:
     has_DRAM = True
     if current_fpga != "X4_200":
       changeImageFPGA(ip_addr=ip_addr, imatge="X4_200")
@@ -182,7 +182,7 @@ def main():
 
   print("[CAPTURA] FPGA configurada correctament\n")
   
-  
+  return
   # ------------------------- 3) Configurant les radios dels dispositius
   # Configurem les freqüències centrals de cada canal
     
