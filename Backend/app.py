@@ -6,6 +6,7 @@ import os, json, traceback
 
 from processing_scripts import generate_options as gen
 from processing_scripts import USRP_handler as usrp_handler
+from processing_scripts import capture as capture_script
 
 app = Flask(__name__)
 CORS(app)
@@ -161,7 +162,19 @@ def save_capture():
     if not ok:
       return jsonify({'ok': False, 'message': 'Failed writing file'}), 500
     print(f"Saved capture to {out_path}")
-    return jsonify({'ok': True, 'path': out_path})
+
+    # Trigger capture in background so the HTTP request doesn't block.
+    try:
+      import threading
+      t = threading.Thread(target=capture_script.main, daemon=True)
+      t.start()
+      capture_started = True
+    except Exception as e:
+      print('Error starting capture:')
+      traceback.print_exc()
+      capture_started = False
+
+    return jsonify({'ok': True, 'path': out_path, 'capture_started': capture_started})
   except Exception as e:
     print('Error saving capture:')
     traceback.print_exc()
