@@ -6,6 +6,7 @@ import json
 import os
 import numpy as np
 import re
+import threading
 
 BYTES_PER_SAMP = 4  # sc16 over the wire = 4 bytes per sample
 
@@ -247,7 +248,7 @@ def main():
   print("\n[CAPTURA] - INICIANT EXECUCIÓ")
   
   # Calculem les mostres necessàries (Utilitzem un temps de prova d'1 segon si no ve del JSON)
-  capture_duration = 1.0 
+  capture_duration = 0.25 
   cap_delay = 0.05
   BYTES_PER_SAMP = 4
   
@@ -299,7 +300,9 @@ def main():
       play_cmd0.stream_now = True
       rx_streamer0.issue_stream_cmd(play_cmd0)
 
+      full_data0 = np.zeros((len(ch_radio0), num_samps0), dtype=cap_dtype)
       recv_buffer = np.zeros((len(ch_radio0), rx_streamer0.get_max_num_samps()), dtype=cap_dtype)
+      
       samps_received = 0
           
       # Per simplificar memòria al host, guardem directament a un fitxer binari brut en chunks
@@ -307,9 +310,13 @@ def main():
           
       while samps_received < num_samps0:
         num_rx = rx_streamer0.recv(recv_buffer, rx_md, 3.0)
+          
+        if rx_md.error_code != uhd.types.RXMetadataErrorCode.none:
+          print(f"Error de metadades: {rx_md.strerror()}")
+             
         if num_rx > 0:
-          for i, f in enumerate(files):
-            f.write(recv_buffer[i, :num_rx].tobytes())
+          # Copiem el fragment de dades al buffer gran de la RAM
+          full_data0[:, samps_received : samps_received + num_rx] = recv_buffer[:, :num_rx]
           samps_received += num_rx
                   
       for f in files: f.close()
@@ -339,149 +346,68 @@ def main():
         for f in files1: f.close()
         
   else:
-    print("a")
-    return  
+    # =====================================================================
+    # RUTA 2: DIRECT STREAMING (Sense DRAM, captura en temps real)
+    # =====================================================================
+    print("[CAPTURA] Mode Streaming Directe actiu. Preparant captura multitasca...")
+      
+    def rx_worker(streamer, num_samps, ch_list, radio_id):
+      """Funció per executar en un fil separat per rebre dades de manera concurrent"""
+      rx_md = uhd.types.RXMetadata()
+      recv_buffer = np.zeros((len(ch_list), streamer.get_max_num_samps()), dtype=cap_dtype)
+      files = [open(f"capture_ch{ch}_direct.iq", "wb") for ch in ch_list]
+          
+      samps_received = 0
+      while samps_received < num_samps:
+        # Timeout curt perquè s'espera el flux gairebé immediatament
+        num_rx = streamer.recv(recv_buffer, rx_md, 1.0)
+        if rx_md.error_code == uhd.types.RXMetadataErrorCode.timeout:
+          print(f"[RÀDIO {radio_id}] Avís: Timeout durant la captura.")
+          break
+        if num_rx > 0:
+          for i, f in enumerate(files):
+            f.write(recv_buffer[i, :num_rx].tobytes())
+          samps_received += num_rx
+                  
+      for f in files: f.close()
+      print(f"[RÀDIO {radio_id}] Captura finalitzada ({samps_received} mostres).")
+
+    # Preparem els comandaments d'inici
+    stream_cmd0 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
+    stream_cmd0.stream_now = False
+    stream_cmd0.time_spec = exec_time
+      
+    stream_cmd1 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
+    stream_cmd1.stream_now = False
+    stream_cmd1.time_spec = exec_time
+
+    threads = []
+
+    # Llancem el fil i les ordres de la Radio 0
+    if ch_radio0:
+      stream_cmd0.num_samps = num_samps0
+      rx_streamer0.issue_stream_cmd(stream_cmd0)
+      t0 = threading.Thread(target=rx_worker, args=(rx_streamer0, num_samps0, ch_radio0, 0))
+      threads.append(t0)
+
+    # Llancem el fil i les ordres de la Radio 1
+    if ch_radio1:
+      stream_cmd1.num_samps = num_samps1
+      rx_streamer1.issue_stream_cmd(stream_cmd1)
+      t1 = threading.Thread(target=rx_worker, args=(rx_streamer1, num_samps1, ch_radio1, 1))
+      threads.append(t1)
+
+    print("[CAPTURA] Esperant l'arribada de dades (fils en paral·lel)...")
+    # Iniciem els bucles de descàrrega abans no arribi el moment 'exec_time'
+    for t in threads:
+      t.start()
+          
+    # Esperem a que els fils acabin la seva feina
+    for t in threads:
+      t.join()
         
   print("\n[CAPTURA] Procés completat amb èxit! Fitxers guardats al disc.")
   
-  return
-  
-  
-  graph.connect(radio0.get_unique_id(), 0, replay0.get_unique_id(), 0)
-  graph.connect(radio1.get_unique_id(), 0, replay1.get_unique_id(), 0)
-
-
-  
-
-  # Configurem els streamers per descarregar les captures a host després de la captura
-  throttle = 0.2
-  num_ports = 1
-  cap_dtype = np.complex64
-
-  stream_args = uhd.usrp.StreamArgs("fc32", "sc16")
-  stream_args.args["throttle"] = str(throttle)
-  
-  return
-    
-  '''
-    # Set up streamer0
-    rx_streamer0 = graph.create_rx_streamer(num_ports, stream_args)
-    graph.connect(replay0.get_unique_id(), 0, rx_streamer0, 0)
-
-    # Set up streamer1
-    rx_streamer1 = graph.create_rx_streamer(num_ports, stream_args)
-    graph.connect(replay1.get_unique_id(), 0, rx_streamer1, 0)
-
-    graph.commit()
-
-    capture_duration = 0.4
-    cap_delay = 0.015
-    
-    ######## Data Capture Execution ########
-    time_now = graph.get_mb_controller().get_timekeeper(0).get_time_now()
-    
-    # --- 1. RECORD CONFIGURATION & ARMING ---
-    num_samps0 = int(mcrs[0] * capture_duration)
-    num_bytes0 = num_samps0 * BYTES_PER_SAMP
-    mem_size0 = replay0.get_mem_size()
-    mem_stride0 = mem_size0 // num_ports
-    
-    for idx in range(num_ports):
-        replay0.record(idx * mem_stride0, num_bytes0, idx)
-        
-    stream_cmd0 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
-    stream_cmd0.num_samps = num_samps0
-    stream_cmd0.stream_now = False
-    stream_cmd0.time_spec = time_now + uhd.types.TimeSpec(cap_delay)
-    radio0.issue_stream_cmd(stream_cmd0, 0)
-   
-    num_samps1 = int(mcrs[1] * capture_duration)
-    num_bytes1 = num_samps1 * BYTES_PER_SAMP
-    mem_size1 = replay1.get_mem_size()
-    mem_stride1 = mem_size1 // num_ports
-
-    for idx in range(num_ports):
-        replay1.record(idx * mem_stride1, num_bytes1, idx)
-                                                                                                 
-    stream_cmd1 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
-    stream_cmd1.num_samps = num_samps1
-    stream_cmd1.stream_now = False
-    stream_cmd1.time_spec = time_now + uhd.types.TimeSpec(cap_delay)
-    radio1.issue_stream_cmd(stream_cmd1, 0)
-
-    # --- 2. WAIT FOR DRAM TO FILL ---
-    print("Recording signals into onboard DRAM...")
-    timeout0 = time.monotonic() + (num_samps0 / mcrs[0]) + cap_delay + 5
-    while any(replay0.get_record_fullness(port) < num_bytes0 for port in range(num_ports)):
-        time.sleep(0.05)
-        if time.monotonic() > timeout0:
-            raise RuntimeError("Timeout while loading replay0 buffer!")
-
-    timeout1 = time.monotonic() + (num_samps1 / mcrs[1]) + cap_delay + 5
-    while any(replay1.get_record_fullness(port) < num_bytes1 for port in range(num_ports)):
-        time.sleep(0.05)
-        if time.monotonic() > timeout1:
-            raise RuntimeError("Timeout while loading replay1 buffer!")
-          
-    # --- 3. DOWNLOAD RADIO 0 DATA TO HOST ---
-    print(f"Downloading {num_samps0} samples from Replay0...")
-    output_buf_replay0 = np.zeros(num_samps0, dtype=cap_dtype)
-    rx_md = uhd.types.RXMetadata()
-    
-    for idx in range(num_ports):
-        replay0.config_play(idx * mem_stride0, num_bytes0, idx)
-        
-    play_cmd0 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
-    play_cmd0.num_samps = num_samps0
-    play_cmd0.stream_now = False
-    play_cmd0.time_spec = uhd.types.TimeSpec(0.0)
-    rx_streamer0.issue_stream_cmd(play_cmd0)
-
-    max_pkt_samps0 = rx_streamer0.get_max_num_samps()
-    recv_buffer0 = np.zeros((num_ports, max_pkt_samps0), dtype=cap_dtype)
-    
-    samps_received0 = 0
-    while samps_received0 < num_samps0:
-        num_rx = rx_streamer0.recv(recv_buffer0, rx_md, 5.0)
-        if rx_md.error_code != uhd.types.RXMetadataErrorCode.none:
-            print("Error during download Replay0: " + rx_md.strerror())
-            break
-        if num_rx > 0:
-            output_buf_replay0[samps_received0 : samps_received0 + num_rx] = recv_buffer0[0, :num_rx]
-            samps_received0 += num_rx
-
-    # --- 4. DOWNLOAD RADIO 1 DATA TO HOST ---
-    print(f"Downloading {num_samps1} samples from Replay1...")
-    output_buf_replay1 = np.zeros(num_samps1, dtype=cap_dtype)
-    
-    for idx in range(num_ports):
-        replay1.config_play(idx * mem_stride1, num_bytes1, idx)
-        
-    play_cmd1 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
-    play_cmd1.num_samps = num_samps1
-    play_cmd1.stream_now = False
-    play_cmd1.time_spec = uhd.types.TimeSpec(0.0)
-    rx_streamer1.issue_stream_cmd(play_cmd1)
-
-    max_pkt_samps1 = rx_streamer1.get_max_num_samps()
-    recv_buffer1 = np.zeros((num_ports, max_pkt_samps1), dtype=cap_dtype)        
-  
-    samps_received1 = 0
-    while samps_received1 < num_samps1:
-        num_rx = rx_streamer1.recv(recv_buffer1, rx_md, 5.0)
-        if rx_md.error_code != uhd.types.RXMetadataErrorCode.none:
-            print("Error during download Replay1: " + rx_md.strerror())
-            break
-        if num_rx > 0:
-            output_buf_replay1[samps_received1 : samps_received1 + num_rx] = recv_buffer1[0, :num_rx]
-            samps_received1 += num_rx
-
-    # --- 5. STORE CAPTURES TO RAW BINARY IQ FILES ---
-    print("\nWriting captures to disk...")
-    output_buf_replay0.tofile("capture_radio0.iq")
-    output_buf_replay1.tofile("capture_radio1.iq")
-    print("Success! Saved 'capture_radio0.iq' and 'capture_radio1.iq'.")
-    '''
     
 if __name__ == "__main__":
     sys.exit(not main())
