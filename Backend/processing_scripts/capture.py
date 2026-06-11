@@ -204,6 +204,9 @@ def main():
    
   # Variables comunes d'streaming
   stream_args = uhd.usrp.StreamArgs("fc32", "sc16")
+  # Demanem a l'USRP que utilitzi buffers de transport interns més grans
+  stream_args.args["num_recv_frames"] = "512"
+  stream_args.args["recv_frame_size"] = "8000" # Ideal si tens Jumbo Frames activats
   cap_dtype = np.complex64
   
   if has_DRAM:
@@ -310,14 +313,25 @@ def main():
           
       while samps_received < num_samps0:
         num_rx = rx_streamer0.recv(recv_buffer, rx_md, 3.0)
+        
+        if rx_md.error_code == uhd.types.RXMetadataErrorCode.timeout:
+          print("[AVÍS] Timeout! L'USRP no envia més dades (Possible pèrdua de paquets prèvia). Sortint del bucle.")
+          break # Sortim per guardar el que tenim fins ara
+             
+        elif rx_md.error_code == uhd.types.RXMetadataErrorCode.overflow:
+          print("[AVÍS] Overflow intern detectat (S'han perdut paquets pel camí).")
+          # No fem break perquè volem continuar recollint la resta de paquets que segueixin vius
           
+        elif rx_md.error_code != uhd.types.RXMetadataErrorCode.none:
+          print(f"[AVÍS] Error estrany: {rx_md.strerror()}")
+        
         if rx_md.error_code != uhd.types.RXMetadataErrorCode.none:
           print(f"Error de metadades: {rx_md.strerror()}")
              
         if num_rx > 0:
-          # Copiem el fragment de dades al buffer gran de la RAM
-          full_data0[:, samps_received : samps_received + num_rx] = recv_buffer[:, :num_rx]
-          samps_received += num_rx
+          mostres_a_copiar = min(num_rx, num_samps0 - samps_received)
+          full_data0[:, samps_received : samps_received + mostres_a_copiar] = recv_buffer[:, :mostres_a_copiar]
+          samps_received += mostres_a_copiar
                   
       for f in files: f.close()
       
