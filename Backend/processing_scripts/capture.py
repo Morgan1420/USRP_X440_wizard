@@ -89,7 +89,7 @@ def main():
   qsfp_connected = [False, False]
   
   for inx, connection in enumerate(capture_data["Connections"]):
-    if(connection["connected"] == True and connection["validated"] == "Yes"):
+    if(connection["connected"] == True and connection["validated"] == "Si"):
       ip_addrs.append(connection["ipAddr"])
       qsfp_connected[inx] = True
     
