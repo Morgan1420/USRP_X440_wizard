@@ -342,7 +342,8 @@ def main():
     print("a")
     return  
         
-        
+  print("\n[CAPTURA] Procés completat amb èxit! Fitxers guardats al disc.")
+  
   return
   
   
