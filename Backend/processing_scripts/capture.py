@@ -242,6 +242,107 @@ def main():
   graph.commit()
   print("[CAPTURA] Graf validat i bloquejat.")
   
+  
+  # ------------------------- 4) Execució i Descàrrega
+  print("\n[CAPTURA] - INICIANT EXECUCIÓ")
+  
+  # Calculem les mostres necessàries (Utilitzem un temps de prova d'1 segon si no ve del JSON)
+  capture_duration = 1.0 
+  cap_delay = 0.05
+  BYTES_PER_SAMP = 4
+  
+  num_samps0 = int(mcrs[0] * capture_duration)
+  num_samps1 = int(mcrs[1] * capture_duration)
+  
+  # Temps sincronitzat
+  time_now = graph.get_mb_controller().get_timekeeper(0).get_time_now()
+  exec_time = time_now + uhd.types.TimeSpec(cap_delay)
+  
+  if has_DRAM:
+    # === LÒGICA DRAM (Gravar i després llegir) ===
+    mem_stride0 = replay0.get_mem_size() // 4 if ch_radio0 else 0
+    mem_stride1 = replay1.get_mem_size() // 4 if ch_radio1 else 0
+
+    # 1. Armar Replays per gravar
+    for ch in ch_radio0:
+      replay0.record((ch - 1) * mem_stride0, num_samps0 * BYTES_PER_SAMP, ch - 1)
+    for ch in ch_radio1:
+      replay1.record((ch - 5) * mem_stride1, num_samps1 * BYTES_PER_SAMP, ch - 5)
+
+    # 2. Donar l'ordre a les ràdios
+    stream_cmd0 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
+    stream_cmd0.num_samps = num_samps0
+    stream_cmd0.stream_now = False
+    stream_cmd0.time_spec = exec_time
+      
+    stream_cmd1 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
+    stream_cmd1.num_samps = num_samps1
+    stream_cmd1.stream_now = False
+    stream_cmd1.time_spec = exec_time
+
+    for ch in ch_radio0: radio0.issue_stream_cmd(stream_cmd0, ch - 1)
+    for ch in ch_radio1: radio1.issue_stream_cmd(stream_cmd1, ch - 5)
+
+    print("[CAPTURA] Omplint la DRAM interna...")
+    time.sleep(capture_duration + cap_delay + 0.5)
+
+    # 3. Descarregar des de la DRAM al disc
+    rx_md = uhd.types.RXMetadata()
+  
+    if ch_radio0:
+      print(f"[CAPTURA] Descarregant dades del bloc Replay 0...")
+      for i, ch in enumerate(ch_radio0):
+        replay0.config_play((ch - 1) * mem_stride0, num_samps0 * BYTES_PER_SAMP, ch - 1)
+          
+      play_cmd0 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
+      play_cmd0.num_samps = num_samps0
+      play_cmd0.stream_now = True
+      rx_streamer0.issue_stream_cmd(play_cmd0)
+
+      recv_buffer = np.zeros((len(ch_radio0), rx_streamer0.get_max_num_samps()), dtype=cap_dtype)
+      samps_received = 0
+          
+      # Per simplificar memòria al host, guardem directament a un fitxer binari brut en chunks
+      files = [open(f"capture_ch{ch}.iq", "wb") for ch in ch_radio0]
+          
+      while samps_received < num_samps0:
+        num_rx = rx_streamer0.recv(recv_buffer, rx_md, 3.0)
+        if num_rx > 0:
+          for i, f in enumerate(files):
+            f.write(recv_buffer[i, :num_rx].tobytes())
+          samps_received += num_rx
+                  
+      for f in files: f.close()
+      
+      # Descàrrega Ràdio 1
+      if ch_radio1:
+        print(f"[CAPTURA] Descarregant dades del bloc Replay 1 ({len(ch_radio1)} canals)...")
+        for i, ch in enumerate(ch_radio1):
+          replay1.config_play((ch - 5) * mem_stride1, num_samps1 * BYTES_PER_SAMP, ch - 5)
+          
+        play_cmd1 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
+        play_cmd1.num_samps = num_samps1
+        play_cmd1.stream_now = True
+        rx_streamer1.issue_stream_cmd(play_cmd1)
+
+        recv_buffer1 = np.zeros((len(ch_radio1), rx_streamer1.get_max_num_samps()), dtype=cap_dtype)
+        files1 = [open(f"capture_ch{ch}.iq", "wb") for ch in ch_radio1]
+          
+        samps_received = 0
+        while samps_received < num_samps1:
+          num_rx = rx_streamer1.recv(recv_buffer1, rx_md, 3.0)
+          if num_rx > 0:
+            for i, f in enumerate(files1):
+              f.write(recv_buffer1[i, :num_rx].tobytes())
+            samps_received += num_rx
+        
+        for f in files1: f.close()
+        
+  else:
+    print("a")
+    return  
+        
+        
   return
   
   
