@@ -1,113 +1,58 @@
 import uhd
-import subprocess
 import sys
 import time
 import json
 import os
 import numpy as np
-import re
 import threading
 
+# Import files from other files
+from processing_scripts.USRP_handler import getImageFPGA, changeImageFPGA
+
+# GLobal vars
 BYTES_PER_SAMP = 4  # sc16 over the wire = 4 bytes per sample
 
-
-
-# Funció que llegeix un fitxer JSON i retorna el contingut en un diccionari
+# Function to get arguments from infoCaptura.json
 def getArgs(file_name="infoCaptura.json"):
   base_dir = os.path.dirname(os.path.dirname(__file__))
   json_path = os.path.join(base_dir, "assistanceJSONs", file_name)
   with open(json_path, "r", encoding="utf-8") as fh:
     return json.load(fh)
 
-# Funció per obtenir la imatge de la FPGA actual
-def getImageFPGA(ip_addr: str) -> str:
 
-  # Creem una comanda uhd_usrp_probe per descobrir la imatge a partir del text resultant
-  cmd = ["uhd_usrp_probe", "--args", f"type=x4xx,addr={ip_addr}"]
+# Capture function
+def capture():
     
-  # Fem un try except per si passes res amb la comanda
-  try:
-    
-    print("[FPGA] Buscant el nom de la imatge de la FPGA...")
-    # Executem el probe i capturem tota la sortida de la línia de comandes
-    result = subprocess.run(cmd, check=True, text=True, capture_output=True)
-    text_complet = result.stdout + result.stderr
-        
-    # Busquem el patró "fpga=NOM" o "fpga: NOM" que imprimeix l'MPM i UHD
-    match = re.search(r"fpga[:=]\s*([a-zA-Z0-9_]+)", text_complet, re.IGNORECASE)
-    if match:
-      print(f"[FPGA] La imatge de la FPGA actual és: {match.group(1)}")
-      return match.group(1)
-    print("[FPGA] No s'ha pogut trobar el nom de la imatge")
-  except subprocess.CalledProcessError as e:
-    print(f"[ERROR - FPGA] Error en executar uhd_usrp_probe: {e.stderr}")
-    # Tornem un guió en cas de no trobar la imatge
-    return "-"
-
-  # Tornem un guió en cas de no trobar la imatge
-  return "-"
-    
-# Funció per canviar la imatge de la FPGA
-def changeImageFPGA(ip_addr: str, imatge: str):
-  # Construïm la comanda en base a les 
-  cmd = [
-    "uhd_image_loader",
-    "--args",
-    f"type=x4xx,addr={ip_addr},fpga={imatge}"
-  ]
+  # ------------------------- 1) EXTRACT AND PREPARE CAPTURE DATA
+  print("  [CAPTURA] - Preparant dades per a la captura...\n")
   
-  # Notifiquem a l'usuari
-  print(f"[FPGA] Iniciant la càrrega de la imatge '{imatge}' a l'USRP ({ip_addr})...")
-  print("[FPGA] Això pot trigar uns minuts i la connexió es perdrà temporalment.")
-    
-  # Fem un try except per si hi hagués cap problema
-  try:
-    # Executem la comanda
-    result = subprocess.run(cmd, check=True, text=True, capture_output=True)
-    
-    # Reiniciem la USRP
-    print("[FPGA] Reiniciant USRP, cal esperar 30s...")
-    time.sleep(30) # Donem marge al Linux intern de l'X440 per tornar a arrencar
-    
-    # Notifiquem a l'usuari
-    print(f"[FPGA] Imatge pujada correctament\n[FPGA] Detalls de la càrrega:\n{result.stdout}")
-     
-        
-  except subprocess.CalledProcessError as e:
-    print(f"[ERROR - FPGA] Error en carregar la imatge '{imatge}': {e.stderr}")
-    raise RuntimeError("[ERROR - FPGA] No s'ha pogut actualitzar l'FPGA de l'USRP.")
-
-
-# Funció main
-def main():
-    
-  # ------------------------- 1) Extraient i preparant variables de captura
-  print("[CAPTURA] - Preparant dades per a la captura...\n")
-  # Llegim el JSON
+  # Read the JSON
   capture_data = getArgs()
     
-  # Adreça IP
+  # IP addresses i connexions QSFP
   ip_addrs = []
   qsfp_connected = [False, False]
   
+  # Extract all the valid IP addresses and identify the QSFP prots
   for inx, connection in enumerate(capture_data["Connections"]):
-    if(connection["connected"] == True and connection["validated"] == "Si"):
+    if(connection["connected"] == True and connection["validated"] == "Yes"):
       ip_addrs.append(connection["ipAddr"])
       qsfp_connected[inx] = True
-    
+  
+  # Throw error if there are no valid connections (this should be checked before but just in case)
   if len(ip_addrs) == 0:
     print("Error: No s'ha trobat cap connexió validada.")
     return # error
   else:
-    # Agafem la primera adreça com a principal
+    # Assign the firts address as the main address
     ip_addr = ip_addrs[0]
     
     
-  # Multi capture flag
+  # Create a flag to indicate if the capture uses >1 partial option (i.e. 2 partial options)
   multi_capture_f = len(capture_data["Option"]["partial_options"]) == 2
   
   
-  # Master clock rates i FCRs
+  # Extract and prepare the MCRs and FCRs
   mcrs = [ capture_data["Option"]["partial_options"][0]["mcr_mhz"] * 1e6]
   fcrs = [ capture_data["Option"]["partial_options"][0]["fcr_ghz"] * 1e9]
   if multi_capture_f:
@@ -248,8 +193,6 @@ def main():
   
   # ------------------------- 4) Execució i Descàrrega
   print("\n[CAPTURA] - INICIANT EXECUCIÓ I DESCÀRREGA")
-  
-  import threading
 
   temps_captura_json = capture_data["Sample-rate"][0].get("Temps de captura", 0)
   capture_duration = float(temps_captura_json) if temps_captura_json > 0 else 0.1 
@@ -431,182 +374,3 @@ def main():
 
   print("\n[CAPTURA] Procés completat amb èxit! Fitxers guardats al disc.")
   
-  '''
-  # ------------------------- 4) Execució i Descàrrega
-  print("\n[CAPTURA] - INICIANT EXECUCIÓ")
-  
-  # Calculem les mostres necessàries (Utilitzem un temps de prova d'1 segon si no ve del JSON)
-  capture_duration = 0.25 
-  cap_delay = 0.05
-  BYTES_PER_SAMP = 4
-  
-  num_samps0 = int(mcrs[0] * capture_duration)
-  num_samps1 = int(mcrs[1] * capture_duration)
-  
-  # Temps sincronitzat
-  time_now = graph.get_mb_controller().get_timekeeper(0).get_time_now()
-  exec_time = time_now + uhd.types.TimeSpec(cap_delay)
-  
-  if has_DRAM:
-    # === LÒGICA DRAM (Gravar i després llegir) ===
-    mem_stride0 = replay0.get_mem_size() // 4 if ch_radio0 else 0
-    mem_stride1 = replay1.get_mem_size() // 4 if ch_radio1 else 0
-
-    # 1. Armar Replays per gravar
-    for ch in ch_radio0:
-      replay0.record((ch - 1) * mem_stride0, num_samps0 * BYTES_PER_SAMP, ch - 1)
-    for ch in ch_radio1:
-      replay1.record((ch - 5) * mem_stride1, num_samps1 * BYTES_PER_SAMP, ch - 5)
-
-    # 2. Donar l'ordre a les ràdios
-    stream_cmd0 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
-    stream_cmd0.num_samps = num_samps0
-    stream_cmd0.stream_now = False
-    stream_cmd0.time_spec = exec_time
-      
-    stream_cmd1 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
-    stream_cmd1.num_samps = num_samps1
-    stream_cmd1.stream_now = False
-    stream_cmd1.time_spec = exec_time
-
-    for ch in ch_radio0: radio0.issue_stream_cmd(stream_cmd0, ch - 1)
-    for ch in ch_radio1: radio1.issue_stream_cmd(stream_cmd1, ch - 5)
-
-    print("[CAPTURA] Omplint la DRAM interna...")
-    time.sleep(capture_duration + cap_delay + 0.5)
-
-    # 3. Descarregar des de la DRAM al disc
-    rx_md = uhd.types.RXMetadata()
-  
-    if ch_radio0:
-      print(f"[CAPTURA] Descarregant dades del bloc Replay 0...")
-      for i, ch in enumerate(ch_radio0):
-        replay0.config_play((ch - 1) * mem_stride0, num_samps0 * BYTES_PER_SAMP, ch - 1)
-          
-      play_cmd0 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
-      play_cmd0.num_samps = num_samps0
-      play_cmd0.stream_now = True
-      rx_streamer0.issue_stream_cmd(play_cmd0)
-
-      full_data0 = np.zeros((len(ch_radio0), num_samps0), dtype=cap_dtype)
-      recv_buffer = np.zeros((len(ch_radio0), rx_streamer0.get_max_num_samps()), dtype=cap_dtype)
-      
-      samps_received = 0
-          
-      # Per simplificar memòria al host, guardem directament a un fitxer binari brut en chunks
-      files = [open(f"capture_ch{ch}.iq", "wb") for ch in ch_radio0]
-          
-      while samps_received < num_samps0:
-        num_rx = rx_streamer0.recv(recv_buffer, rx_md, 3.0)
-        
-        if rx_md.error_code == uhd.types.RXMetadataErrorCode.timeout:
-          print("[AVÍS] Timeout! L'USRP no envia més dades (Possible pèrdua de paquets prèvia). Sortint del bucle.")
-          break # Sortim per guardar el que tenim fins ara
-             
-        elif rx_md.error_code == uhd.types.RXMetadataErrorCode.overflow:
-          print("[AVÍS] Overflow intern detectat (S'han perdut paquets pel camí).")
-          # No fem break perquè volem continuar recollint la resta de paquets que segueixin vius
-          
-        elif rx_md.error_code != uhd.types.RXMetadataErrorCode.none:
-          print(f"[AVÍS] Error estrany: {rx_md.strerror()}")
-        
-        if rx_md.error_code != uhd.types.RXMetadataErrorCode.none:
-          print(f"Error de metadades: {rx_md.strerror()}")
-             
-        if num_rx > 0:
-          mostres_a_copiar = min(num_rx, num_samps0 - samps_received)
-          full_data0[:, samps_received : samps_received + mostres_a_copiar] = recv_buffer[:, :mostres_a_copiar]
-          samps_received += mostres_a_copiar
-                  
-      for f in files: f.close()
-      
-      # Descàrrega Ràdio 1
-      if ch_radio1:
-        print(f"[CAPTURA] Descarregant dades del bloc Replay 1 ({len(ch_radio1)} canals)...")
-        for i, ch in enumerate(ch_radio1):
-          replay1.config_play((ch - 5) * mem_stride1, num_samps1 * BYTES_PER_SAMP, ch - 5)
-          
-        play_cmd1 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
-        play_cmd1.num_samps = num_samps1
-        play_cmd1.stream_now = True
-        rx_streamer1.issue_stream_cmd(play_cmd1)
-
-        recv_buffer1 = np.zeros((len(ch_radio1), rx_streamer1.get_max_num_samps()), dtype=cap_dtype)
-        files1 = [open(f"capture_ch{ch}.iq", "wb") for ch in ch_radio1]
-          
-        samps_received = 0
-        while samps_received < num_samps1:
-          num_rx = rx_streamer1.recv(recv_buffer1, rx_md, 3.0)
-          if num_rx > 0:
-            for i, f in enumerate(files1):
-              f.write(recv_buffer1[i, :num_rx].tobytes())
-            samps_received += num_rx
-        
-        for f in files1: f.close()
-        
-  else:
-    # =====================================================================
-    # RUTA 2: DIRECT STREAMING (Sense DRAM, captura en temps real)
-    # =====================================================================
-    print("[CAPTURA] Mode Streaming Directe actiu. Preparant captura multitasca...")
-      
-    def rx_worker(streamer, num_samps, ch_list, radio_id):
-      """Funció per executar en un fil separat per rebre dades de manera concurrent"""
-      rx_md = uhd.types.RXMetadata()
-      recv_buffer = np.zeros((len(ch_list), streamer.get_max_num_samps()), dtype=cap_dtype)
-      files = [open(f"capture_ch{ch}_direct.iq", "wb") for ch in ch_list]
-          
-      samps_received = 0
-      while samps_received < num_samps:
-        # Timeout curt perquè s'espera el flux gairebé immediatament
-        num_rx = streamer.recv(recv_buffer, rx_md, 1.0)
-        if rx_md.error_code == uhd.types.RXMetadataErrorCode.timeout:
-          print(f"[RÀDIO {radio_id}] Avís: Timeout durant la captura.")
-          break
-        if num_rx > 0:
-          for i, f in enumerate(files):
-            f.write(recv_buffer[i, :num_rx].tobytes())
-          samps_received += num_rx
-                  
-      for f in files: f.close()
-      print(f"[RÀDIO {radio_id}] Captura finalitzada ({samps_received} mostres).")
-
-    # Preparem els comandaments d'inici
-    stream_cmd0 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
-    stream_cmd0.stream_now = False
-    stream_cmd0.time_spec = exec_time
-      
-    stream_cmd1 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
-    stream_cmd1.stream_now = False
-    stream_cmd1.time_spec = exec_time
-
-    threads = []
-
-    # Llancem el fil i les ordres de la Radio 0
-    if ch_radio0:
-      stream_cmd0.num_samps = num_samps0
-      rx_streamer0.issue_stream_cmd(stream_cmd0)
-      t0 = threading.Thread(target=rx_worker, args=(rx_streamer0, num_samps0, ch_radio0, 0))
-      threads.append(t0)
-
-    # Llancem el fil i les ordres de la Radio 1
-    if ch_radio1:
-      stream_cmd1.num_samps = num_samps1
-      rx_streamer1.issue_stream_cmd(stream_cmd1)
-      t1 = threading.Thread(target=rx_worker, args=(rx_streamer1, num_samps1, ch_radio1, 1))
-      threads.append(t1)
-
-    print("[CAPTURA] Esperant l'arribada de dades (fils en paral·lel)...")
-    # Iniciem els bucles de descàrrega abans no arribi el moment 'exec_time'
-    for t in threads:
-      t.start()
-          
-    # Esperem a que els fils acabin la seva feina
-    for t in threads:
-      t.join()
-        
-  print("\n[CAPTURA] Procés completat amb èxit! Fitxers guardats al disc.")
-  '''
-    
-if __name__ == "__main__":
-    sys.exit(not main())

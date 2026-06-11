@@ -116,7 +116,7 @@ async function handleCapture(){
 
     const info = { Option: optionData, Ports: portsObj, Connections: networkConfig, 'Sample-rate': [sampleRateObj] }
 
-    const resp = await fetch('http://127.0.0.1:5000/api/save_capture', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(info) })
+    const resp = await fetch('http://127.0.0.1:5000/api/start_capture', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(info) })
     const data = await resp.json()
     if (data.ok){
       alert('Capture saved successfully')
