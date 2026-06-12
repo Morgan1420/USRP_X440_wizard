@@ -85,16 +85,16 @@ def capture():
   
   # Sample rate
   user_sample_rate_f = capture_data["Sample-rate"][0]["Automàtic"]
-  user_sample_rate = capture_data["Sample-rate"][0]["Sample-rate"] * 1e6 # en Hz, potser cal canviar el multiplicador
+  user_sample_rate = capture_data["Sample-rate"][0]["Sample-rate"] * 1e6 # en Hz
   
-  # Print dades de captura - per fer
+  # Print dades de captura 
   print(f"Adreça IP: {ip_addr}")
   print(f"Multi-capture: {multi_capture_f}")
   print(f"Master clock rates: {mcrs} Hz")
   print(f"Frequencies of conversion: {fcrs} GHz")
   print(f"Channels: {channels}")
   print(f"Frequencies per canal: {frequencies_per_channel}")
-  print(f"Sample rate: {user_sample_rate} Sps\n")
+  print(f"Sample rate desitjat: {'Automàtic (Igual a MCR)' if user_sample_rate_f else f'{user_sample_rate} Sps'}\n")
   
   
   # ------------------------- 2) Configurant la FPGA
@@ -109,20 +109,25 @@ def capture():
     has_DRAM = True
     if current_fpga != "X4_200":
       changeImageFPGA(ip_addr=ip_addr, imatge="X4_200")
+      current_fpga = "X4_200"
   elif max(mcrs) <= 512e6 and qsfp_connected[0] and qsfp_connected[1]:
     if current_fpga != "CG_400":
       changeImageFPGA(ip_addr=ip_addr, imatge="CG_400")
+      current_fpga = "CG_400"
   elif max(mcrs) <= 512e6 and qsfp_connected[0]:
     has_DRAM = True
     if current_fpga != "X4_400":
       changeImageFPGA(ip_addr=ip_addr, imatge="X4_400")
+      current_fpga = "X4_400"
   elif min(mcrs) >= 1000e6 and qsfp_connected[0] and qsfp_connected[1]:
     if current_fpga != "CG_1600":
       changeImageFPGA(ip_addr=ip_addr, imatge="CG_1600")
+      current_fpga = "CG_1600"
   elif min(mcrs) >= 1000e6 and qsfp_connected[0]:
     has_DRAM = True
     if current_fpga != "X4_1600":
       changeImageFPGA(ip_addr=ip_addr, imatge="X4_1600")
+      current_fpga = "X4_1600"
   else:
     raise RuntimeError("[ERROR - CAPTURA] No s'ha trobat cap imatge de FPGA compatible amb els paràmetres de captura i connexions QSFP detectades.")
 
@@ -130,10 +135,9 @@ def capture():
   
 
   # ------------------------- 3) Configurant les radios dels dispositius
-  print("[CAPTURA] - Configurarnt els blocs RFNOC\n")
-  
+  print("[CAPTURA] - Configurant els blocs RFNOC\n")
 
-  # Creem el ...
+  # Creem l'arbre RFNoC
   dev_args = f"addr={ip_addr},product=x440,master_clock_rate=({mcrs[0]};{mcrs[1]}),converter_rate=({fcrs[0]};{fcrs[1]})"
   graph = uhd.rfnoc.RfnocGraph(dev_args)
 
@@ -149,10 +153,15 @@ def capture():
    
   # Variables comunes d'streaming
   stream_args = uhd.usrp.StreamArgs("fc32", "sc16")
-  # Demanem a l'USRP que utilitzi buffers de transport interns més grans
   stream_args.args["num_recv_frames"] = "512"
-  stream_args.args["recv_frame_size"] = "8000" # Ideal si tens Jumbo Frames activats
+  stream_args.args["recv_frame_size"] = "8000" 
   cap_dtype = np.complex64
+
+  # Avaluem si hem d'inserir el bloc DDC a l'arbre
+  use_ddc = (current_fpga == "X4_200") and (not user_sample_rate_f) and (user_sample_rate > 0)
+
+  if use_ddc:
+      print(f"[CAPTURA] MCR detectat: {mcrs[0]} Hz. Decimant per maquinari a {user_sample_rate} Sps mitjançant blocs DDC.")
   
   if has_DRAM:
     # --- RUTA 1: RUTA AMB DRAM (Imatges X4_) ---
@@ -161,13 +170,26 @@ def capture():
     replay0 = uhd.rfnoc.ReplayBlockControl(graph.get_block("0/Replay#0"))
     replay1 = uhd.rfnoc.ReplayBlockControl(graph.get_block("0/Replay#1"))
       
-    # Connectem la Radio al Replay
+    # Connectem la Radio al Replay (Intercalant el DDC si escau)
     for ch in ch_radio0:
-      graph.connect(radio0.get_unique_id(), ch - 1, replay0.get_unique_id(), ch - 1)
+      if use_ddc:
+        ddc0 = uhd.rfnoc.DdcBlockControl(graph.get_block(f"0/DDC#{ch-1}"))
+        ddc0.set_output_rate(user_sample_rate, 0)
+        graph.connect(radio0.get_unique_id(), ch - 1, ddc0.get_unique_id(), 0)
+        graph.connect(ddc0.get_unique_id(), 0, replay0.get_unique_id(), ch - 1)
+      else:
+        graph.connect(radio0.get_unique_id(), ch - 1, replay0.get_unique_id(), ch - 1)
+        
     for ch in ch_radio1:
-      graph.connect(radio1.get_unique_id(), ch - 5, replay1.get_unique_id(), ch - 5)
+      if use_ddc:
+        ddc1 = uhd.rfnoc.DdcBlockControl(graph.get_block(f"0/DDC#{ch-1}")) # 0 a 7 global
+        ddc1.set_output_rate(user_sample_rate, 0)
+        graph.connect(radio1.get_unique_id(), ch - 5, ddc1.get_unique_id(), 0)
+        graph.connect(ddc1.get_unique_id(), 0, replay1.get_unique_id(), ch - 5)
+      else:
+        graph.connect(radio1.get_unique_id(), ch - 5, replay1.get_unique_id(), ch - 5)
           
-    # Connectem el Replay al Host (nosaltres)
+    # Connectem el Replay al Host
     rx_streamer0 = graph.create_rx_streamer(len(ch_radio0), stream_args) if ch_radio0 else None
     for i, ch in enumerate(ch_radio0):
       graph.connect(replay0.get_unique_id(), ch - 1, rx_streamer0, i)
@@ -182,14 +204,27 @@ def capture():
       
     rx_streamer0 = graph.create_rx_streamer(len(ch_radio0), stream_args) if ch_radio0 else None
     for i, ch in enumerate(ch_radio0):
-      graph.connect(radio0.get_unique_id(), ch - 1, rx_streamer0, i)
+      if use_ddc:
+        ddc0 = uhd.rfnoc.DdcBlockControl(graph.get_block(f"0/DDC#{ch-1}"))
+        ddc0.set_output_rate(user_sample_rate, 0)
+        graph.connect(radio0.get_unique_id(), ch - 1, ddc0.get_unique_id(), 0)
+        graph.connect(ddc0.get_unique_id(), 0, rx_streamer0, i)
+      else:
+        graph.connect(radio0.get_unique_id(), ch - 1, rx_streamer0, i)
 
     rx_streamer1 = graph.create_rx_streamer(len(ch_radio1), stream_args) if ch_radio1 else None
     for i, ch in enumerate(ch_radio1):
-      graph.connect(radio1.get_unique_id(), ch - 5, rx_streamer1, i)
+      if use_ddc:
+        ddc1 = uhd.rfnoc.DdcBlockControl(graph.get_block(f"0/DDC#{ch-1}"))
+        ddc1.set_output_rate(user_sample_rate, 0)
+        graph.connect(radio1.get_unique_id(), ch - 5, ddc1.get_unique_id(), 0)
+        graph.connect(ddc1.get_unique_id(), 0, rx_streamer1, i)
+      else:
+        graph.connect(radio1.get_unique_id(), ch - 5, rx_streamer1, i)
   
   graph.commit()
   print("[CAPTURA] Graf validat i bloquejat.")
+  
   
   # ------------------------- 4) Execució i Descàrrega
   print("\n[CAPTURA] - INICIANT EXECUCIÓ I DESCÀRREGA")
@@ -199,10 +234,14 @@ def capture():
   
   cap_delay = 0.05
   BYTES_PER_SAMP = 4
-  CHUNK_SAMPS = 2_000_000  # ~8MB per canal, ideal per no col·lapsar el Host
+  CHUNK_SAMPS = 2_000_000  # ~8MB per canal
   
-  num_samps0 = int(mcrs[0] * capture_duration)
-  num_samps1 = int(mcrs[1] * capture_duration)
+  # Calculem les mostres exactes depenent de si hem passat per DDC o no
+  actual_rate0 = user_sample_rate if use_ddc else mcrs[0]
+  actual_rate1 = user_sample_rate if use_ddc else mcrs[1]
+
+  num_samps0 = int(actual_rate0 * capture_duration)
+  num_samps1 = int(actual_rate1 * capture_duration)
   
   time_now = graph.get_mb_controller().get_timekeeper(0).get_time_now()
   exec_time = time_now + uhd.types.TimeSpec(cap_delay)
@@ -244,7 +283,6 @@ def capture():
       if ch_radio0:
           print(f"[CAPTURA] Descarregant dades del bloc Replay 0 ({len(ch_radio0)} canals) en chunks...")
           
-          # Creem el buffer a la RAM per guardar-ho tot abans del disc
           full_data0 = np.zeros((len(ch_radio0), num_samps0), dtype=cap_dtype)
           recv_buffer0 = np.zeros((len(ch_radio0), rx_streamer0.get_max_num_samps()), dtype=cap_dtype)
           samps_received0 = 0
@@ -254,11 +292,9 @@ def capture():
               bytes_this_chunk = samps_this_chunk * BYTES_PER_SAMP
               offset_bytes = samps_received0 * BYTES_PER_SAMP
 
-              # Apuntem el Replay a la porció exacta per a cadascun dels canals actius
               for i, ch in enumerate(ch_radio0):
                   replay0.config_play(((ch - 1) * mem_stride0) + offset_bytes, bytes_this_chunk, ch - 1)
 
-              # Demanem només aquest chunk a l'streamer
               play_cmd0 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
               play_cmd0.num_samps = samps_this_chunk
               play_cmd0.stream_now = True
@@ -273,7 +309,6 @@ def capture():
                       break
                       
                   if num_rx > 0:
-                      # Copiem exclusivament la porció rebuda al lloc corresponent de la matriu global
                       full_data0[:, samps_received0 : samps_received0 + num_rx] = recv_buffer0[:, :num_rx]
                       samps_received0 += num_rx
                       chunk_received += num_rx
@@ -373,4 +408,6 @@ def capture():
       for t in threads: t.join()
 
   print("\n[CAPTURA] Procés completat amb èxit! Fitxers guardats al disc.")
-  
+
+if __name__ == "__main__":
+  capture()
