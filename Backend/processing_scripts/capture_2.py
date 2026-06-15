@@ -151,17 +151,10 @@ def capture():
       radio1.set_rx_frequency(frequencies_per_channel[ch], ch - 5) 
    
   # Variables comunes d'streaming
-  if current_fpga == "X4_200":
-    stream_args = uhd.usrp.StreamArgs("fc32", "sc16")
-    cap_dtype = np.complex64
-    bytes_per_samp_wire = 4 # sc16 = 2 enters de 16-bits (I i Q) = 4 bytes
-  else:
-    stream_args = uhd.usrp.StreamArgs("f32", "s16")
-    cap_dtype = np.float32
-    bytes_per_samp_wire = 2 # s16 = 1 enter de 16-bits (només Real) = 2 bytes
-    
+  stream_args = uhd.usrp.StreamArgs("fc32", "sc16")
   stream_args.args["num_recv_frames"] = "512"
-  stream_args.args["recv_frame_size"] = "8000"
+  stream_args.args["recv_frame_size"] = "8000" 
+  cap_dtype = np.complex64
 
   # Avaluem si hem d'inserir el bloc DDC a l'arbre
   use_ddc = (current_fpga == "X4_200") and (not user_sample_rate_f) and (user_sample_rate > 0)
@@ -225,10 +218,8 @@ def capture():
   capture_duration = float(temps_captura_json) if temps_captura_json > 0 else 0.1 
   
   cap_delay = 0.05
-  BYTES_PER_SAMP = bytes_per_samp_wire  # Ara és dinàmic depenent de la FPGA
-  CHUNK_SAMPS = 2_000_000  # ~8MB (si complex) o ~4MB (si real)
-  
-  
+  BYTES_PER_SAMP = 4
+  CHUNK_SAMPS = 2_000_000  # ~8MB per canal
   
   # Calculem les mostres exactes depenent de si hem passat per DDC o no
   actual_rate0 = user_sample_rate if use_ddc else mcrs[0]
@@ -307,7 +298,7 @@ def capture():
 
           print("[CAPTURA] Descàrrega per xarxa de Ràdio 0 completada. Guardant a disc...")
           for i, ch in enumerate(ch_radio0):
-              full_data0[i, :].tofile(f"capture_ch{ch}.bin")
+              full_data0[i, :].tofile(f"capture_ch{ch}.iq")
 
       # ---------------- DESCÀRREGA RÀDIO 1 ----------------
       if ch_radio1:
@@ -345,7 +336,7 @@ def capture():
 
           print("[CAPTURA] Descàrrega per xarxa de Ràdio 1 completada. Guardant a disc...")
           for i, ch in enumerate(ch_radio1):
-              full_data1[i, :].tofile(f"capture_ch{ch}.bin")
+              full_data1[i, :].tofile(f"capture_ch{ch}.iq")
 
   else:
       # RUTA 2: DIRECT STREAMING
@@ -369,7 +360,7 @@ def capture():
                   
           print(f"[RÀDIO {radio_id}] Streaming finalitzat. Guardant a disc...")
           for i, ch in enumerate(ch_list):
-              full_data[i, :samps_received].tofile(f"capture_ch{ch}_direct.bin")
+              full_data[i, :samps_received].tofile(f"capture_ch{ch}_direct.iq")
 
       stream_cmd0 = uhd.types.StreamCMD(uhd.types.StreamMode.num_done)
       stream_cmd0.stream_now = False
