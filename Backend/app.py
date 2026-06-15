@@ -6,7 +6,7 @@ import threading
 # Import files from repo
 from processing_scripts import generate_options as gen
 from processing_scripts import USRP_handler as usrp_handler
-from processing_scripts import capture as capture_script
+from processing_scripts import capture_2 as capture_script
 
 # Create Flask app 
 app = Flask(__name__)

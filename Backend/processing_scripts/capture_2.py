@@ -106,7 +106,6 @@ def capture():
   
   # Triem la imatge de la FPGA més convenient
   if max(mcrs) <= 200e6 and not user_sample_rate_f and qsfp_connected[0]:
-    has_DRAM = True
     if current_fpga != "X4_200":
       changeImageFPGA(ip_addr=ip_addr, imatge="X4_200")
       current_fpga = "X4_200"
@@ -152,16 +151,18 @@ def capture():
       radio1.set_rx_frequency(frequencies_per_channel[ch], ch - 5) 
    
   # Variables comunes d'streaming
-  stream_args = uhd.usrp.StreamArgs("fc32", "sc16")
+  if current_fpga == "X4_200":
+    stream_args = uhd.usrp.StreamArgs("fc32", "sc16")
+  else:
+    stream_args = uhd.usrp.StreamArgs("f32", "item32")
   stream_args.args["num_recv_frames"] = "512"
   stream_args.args["recv_frame_size"] = "8000" 
   cap_dtype = np.complex64
 
   # Avaluem si hem d'inserir el bloc DDC a l'arbre
   use_ddc = (current_fpga == "X4_200") and (not user_sample_rate_f) and (user_sample_rate > 0)
-
   if use_ddc:
-      print(f"[CAPTURA] MCR detectat: {mcrs[0]} Hz. Decimant per maquinari a {user_sample_rate} Sps mitjançant blocs DDC.")
+      print(f"[CAPTURA] MCR detectat: {mcrs[0]} Hz. Delmant per maquinari a {user_sample_rate} Sps mitjançant blocs DDC.")
   
   if has_DRAM:
     # --- RUTA 1: RUTA AMB DRAM (Imatges X4_) ---
@@ -170,24 +171,11 @@ def capture():
     replay0 = uhd.rfnoc.ReplayBlockControl(graph.get_block("0/Replay#0"))
     replay1 = uhd.rfnoc.ReplayBlockControl(graph.get_block("0/Replay#1"))
       
-    # Connectem la Radio al Replay (Intercalant el DDC si escau)
+    # Connectem la Radio al Replay
     for ch in ch_radio0:
-      if use_ddc:
-        ddc0 = uhd.rfnoc.DdcBlockControl(graph.get_block(f"0/DDC#{ch-1}"))
-        ddc0.set_output_rate(user_sample_rate, 0)
-        graph.connect(radio0.get_unique_id(), ch - 1, ddc0.get_unique_id(), 0)
-        graph.connect(ddc0.get_unique_id(), 0, replay0.get_unique_id(), ch - 1)
-      else:
-        graph.connect(radio0.get_unique_id(), ch - 1, replay0.get_unique_id(), ch - 1)
-        
+      graph.connect(radio0.get_unique_id(), ch - 1, replay0.get_unique_id(), ch - 1)
     for ch in ch_radio1:
-      if use_ddc:
-        ddc1 = uhd.rfnoc.DdcBlockControl(graph.get_block(f"0/DDC#{ch-1}")) # 0 a 7 global
-        ddc1.set_output_rate(user_sample_rate, 0)
-        graph.connect(radio1.get_unique_id(), ch - 5, ddc1.get_unique_id(), 0)
-        graph.connect(ddc1.get_unique_id(), 0, replay1.get_unique_id(), ch - 5)
-      else:
-        graph.connect(radio1.get_unique_id(), ch - 5, replay1.get_unique_id(), ch - 5)
+      graph.connect(radio1.get_unique_id(), ch - 5, replay1.get_unique_id(), ch - 5)
           
     # Connectem el Replay al Host
     rx_streamer0 = graph.create_rx_streamer(len(ch_radio0), stream_args) if ch_radio0 else None
@@ -247,9 +235,7 @@ def capture():
   exec_time = time_now + uhd.types.TimeSpec(cap_delay)
 
   if has_DRAM:
-      # =====================================================================
       # RUTA 1: CAPTURA MITJANÇANT DRAM (Amb descàrrega Chunked)
-      # =====================================================================
       mem_stride0 = replay0.get_mem_size() // 4 if ch_radio0 else 0
       mem_stride1 = replay1.get_mem_size() // 4 if ch_radio1 else 0
 
@@ -356,9 +342,7 @@ def capture():
               full_data1[i, :].tofile(f"capture_ch{ch}.iq")
 
   else:
-      # =====================================================================
-      # RUTA 2: DIRECT STREAMING (Captura en temps real multitasca)
-      # =====================================================================
+      # RUTA 2: DIRECT STREAMING
       print("[CAPTURA] Mode Streaming Directe actiu. Preparant captura multitasca...")
       
       def rx_worker(streamer, num_samps, ch_list, radio_id):
