@@ -85,7 +85,7 @@ def capture():
   
   # Sample rate
   user_sample_rate_f = capture_data["Sample-rate"][0]["Automàtic"]
-  user_sample_rate = capture_data["Sample-rate"][0]["Sample-rate"] * 1e6 # en Hz
+  user_sample_rate = capture_data["Sample-rate"][0]["Sample-rate"]
   
   # Print dades de captura 
   print(f"Adreça IP: {ip_addr}")
