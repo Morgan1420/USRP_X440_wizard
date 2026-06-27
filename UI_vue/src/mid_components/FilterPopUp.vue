@@ -13,146 +13,153 @@
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
-import InputBox from '../small_components/InputBox.vue'
-import SelectBox from '../small_components/SelectBox.vue'
-import Button from '../small_components/Button.vue'
+  <script setup>
+  import { ref, onMounted } from 'vue'
+  import InputBox from '../small_components/InputBox.vue'
+  import SelectBox from '../small_components/SelectBox.vue'
+  import Button from '../small_components/Button.vue'
 
-const emit = defineEmits(['save','close'])
-const labelGap = 250
+  const emit = defineEmits(['save','close'])
+  const labelGap = 250
 
-const minRef = ref(null)
-const maxRef = ref(null)
-const selectRef = ref(null)
+  const minRef = ref(null)
+  const maxRef = ref(null)
+  const selectRef = ref(null)
 
-function parseIntLike(s) {
-  if (s == null) return null
-  const t = String(s).trim()
-  if (t === '') return null
-  const n = parseInt(parseFloat(t))
-  return Number.isNaN(n) ? null : n
-}
-
-async function onOk() {
-  // Recuperem els valors dels InputBox i del SelectBox
-  const minVal = parseIntLike(minRef.value?.getText?.() ?? '')
-  const maxVal = parseIntLike(maxRef.value?.getText?.() ?? '')
-  const sortVal = selectRef.value?.getValue?.() ?? ''
-
-  // Validem els valors (per exemple, min ha de ser <= max)
-  if ((minVal != null && minVal < 0) || (maxVal != null && maxVal < 0)) {
-    alert('Error: Els valors han de ser no negatius.')
-    return
+  function parseIntLike(s) {
+    if (s == null) return null
+    const t = String(s).trim()
+    if (t === '') return null
+    const n = parseInt(parseFloat(t))
+    return Number.isNaN(n) ? null : n
   }
-  if (minVal != null && maxVal != null && minVal > maxVal) {
-    alert('Error: El valor mínim ha de ser <= al valor màxim.')
-    return
-  }
-  
-  // Preparem l'objecte a enviar
-  const obj = { min_channels: minVal, max_channels: maxVal, sorting: sortVal }
 
-  // Enviem l'objecte al backend
-  // Fem un try catch per si hi hagués cap error amb el BE
-  try {
-    // 
-    const res = await fetch('http://localhost:5000/api/store_filters', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(obj)
-    })
+  async function onOk() {
+    // Recuperem els valors dels InputBox i del SelectBox
+    const minVal = parseIntLike(minRef.value?.getText?.() ?? '')
+    const maxVal = parseIntLike(maxRef.value?.getText?.() ?? '')
+    const sortVal = selectRef.value?.getValue?.() ?? ''
 
-    if (!res.ok) {
-      let txt = ''
-      try { txt = await res.text() } catch (e) { txt = String(res.status) }
-      alert('Error guardant filtres: ' + txt)
+    // Validem els valors (per exemple, min ha de ser <= max)
+    if ((minVal != null && minVal < 0) || (maxVal != null && maxVal < 0)) {
+      alert('Error: Els valors han de ser no negatius.')
+      return
+    }
+    if (minVal != null && maxVal != null && minVal > maxVal) {
+      alert('Error: El valor mínim ha de ser <= al valor màxim.')
       return
     }
 
-    const data = await res.json().catch(() => null)
-    if (data && data.ok) {
-      try { localStorage.setItem('filters', JSON.stringify(obj)) } catch (e) {}
-      emit('save')
-      emit('close')
-      return
+    // Preparem l'objecte a enviar
+    const obj = { min_channels: minVal, max_channels: maxVal, sorting: sortVal }
+
+    // Enviem l'objecte al backend
+    // Fem un try catch per si hi hagués cap error amb el BE
+    try {
+      // Fem un POST a l'endpoint del backend per guardar els filtres
+      const res = await fetch('http://localhost:5000/api/store_filters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(obj)
+      })
+
+      // Si la resposta no és correcta, mostrem un missatge d'error
+      if (!res.ok) {
+        let txt = ''
+        try { txt = await res.text() } catch (e) { txt = String(res.status) }
+        alert('Error guardant filtres: ' + txt)
+        return
+      }
+
+      // Si la resposta és correcta, comprovem el contingut de la resposta
+      const data = await res.json().catch(() => null)
+      if (data && data.ok) {
+        // Fem un try catch perque pot ser que l'usuari tingui el localStorage deshabilitat o algo (ho recomanen por ai)
+        try { localStorage.setItem('filters', JSON.stringify(obj)) } catch (e) {}
+        // Emitim l'event 'save' i 'close' per tancar el pop-up
+        emit('save')
+        emit('close')
+        return
+      }
+      // Si la resposta no és correcta, mostrem un missatge d'error amb el contingut de la resposta
+      alert('Error guardant filtres: ' + (data && data.message ? data.message : 'unknown error'))
+    } catch (e) {
+      // Si hi ha hagut algun error en la crida al backend, mostrem un missatge d'error
+      console.error('Error posting filters', e)
+      alert('Error connectant al backend; assegura\'t que està en execució a http://localhost:5000')
     }
-
-    alert('Error guardant filtres: ' + (data && data.message ? data.message : 'unknown error'))
-  } catch (e) {
-    console.error('Error posting filters', e)
-    alert('Error connectant al backend; assegura\'t que està en execució a http://localhost:5000')
   }
-}
 
-function onCancel() {
-  emit('close')
-}
+  // Funció per tancar el pop-up sense guardar els canvis
+  function onCancel() {
+    emit('close')
+  }
 
-onMounted(async () => {
-  // Fem un try catch per si hi hagués cap error amb el BE
-  try {
-    // Recuperem els valors dels filtres
-    const res = await fetch('http://localhost:5000/api/load_filters', { cache: 'no-store' })
-    
-    // Si la resposta és correcta, actualitzem els camps del pop-up
-    if (res.ok) {
-      // Recuperem les dades si existeixen
-      const data = await res.json()
-      const min = data.min_channels
-      const max = data.max_channels
-      const sorting = data.sorting 
+  // Quan el component es monta, carreguem els valors dels filtres des del backend i els posem als InputBox i SelectBox
+  onMounted(async () => {
+    // Fem un try catch per si hi hagués cap error amb el BE
+    try {
+      // Recuperem els valors dels filtres
+      const res = await fetch('http://localhost:5000/api/load_filters', { cache: 'no-store' })
 
-      // Actualitzem el text dels InputBox
-      if (minRef.value?.setText) minRef.value.setText(String(min))
-      if (maxRef.value?.setText) maxRef.value.setText(String(max))
+      // Si la resposta és correcta, actualitzem els camps del pop-up
+      if (res.ok) {
+        // Recuperem les dades si existeixen
+        const data = await res.json()
+        const min = data.min_channels
+        const max = data.max_channels
+        const sorting = data.sorting 
 
-      // Actualitzem el SelectBox segons l'opció de sorting
-      const opts = ['max chan','min chan','min overlap']
-      const idx = opts.findIndex(o => (sorting || '').toLowerCase().includes(o))
-      if (idx >= 0 && selectRef.value?.setSelected) 
-        selectRef.value.setSelected(idx)
+        // Actualitzem el text dels InputBox
+        if (minRef.value?.setText) minRef.value.setText(String(min))
+        if (maxRef.value?.setText) maxRef.value.setText(String(max))
+
+        // Actualitzem el SelectBox segons l'opció de sorting
+        const opts = ['max chan','min chan','min overlap']
+        const idx = opts.findIndex(o => (sorting || '').toLowerCase().includes(o))
+        if (idx >= 0 && selectRef.value?.setSelected) 
+          selectRef.value.setSelected(idx)
+      }
+    } catch (e) {
+      console.error('Could not load filters via API:', e)
     }
-  } catch (e) {
-    console.error('Could not load filters via API:', e)
-  }
-})
+  })
 </script>
 
 <style scoped>
 
-.pop-up-box { 
-  position: absolute; 
-  top: 32.5%; 
-  left: 35%;
-  width: 30%; 
+  .pop-up-box { 
+    position: absolute; 
+    top: 32.5%; 
+    left: 35%;
+    width: 30%; 
 
-  background:#fff; 
-  padding:18px;
-  border-radius:8px;
-  box-shadow:0 8px 30px rgba(0,0,0,0.15);
-}
+    background:#fff; 
+    padding:18px;
+    border-radius:8px;
+    box-shadow:0 8px 30px rgba(0,0,0,0.15);
+  }
 
-.pop-up-box h3 { 
-  font-size: 1.8rem;
-  margin-top:0;
-  text-align:center; 
-}
+  .pop-up-box h3 { 
+    font-size: 1.8rem;
+    margin-top:0;
+    text-align:center; 
+  }
 
-.rows { 
-  margin-bottom:12px;
+  .rows { 
+    margin-bottom:12px;
 
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:space-between;
-  gap:15px;
-}
-.actions { 
-  width:90%;
-  display:flex; 
-  justify-content:space-between; 
-  gap:10px; 
-  margin-top:8px; 
-}
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:space-between;
+    gap:15px;
+  }
+  .actions { 
+    width:90%;
+    display:flex; 
+    justify-content:space-between; 
+    gap:10px; 
+    margin-top:8px; 
+  }
 </style>

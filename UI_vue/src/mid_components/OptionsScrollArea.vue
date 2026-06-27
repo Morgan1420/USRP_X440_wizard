@@ -63,74 +63,73 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+  import { ref } from 'vue'
 
-// Variables i tal
-const emit = defineEmits(['show','start-capture'])
-const listRef = ref(null)
-const items = ref([])
-const loading = ref(false)
-const selectedIndex = ref(null)
+  // Variables i tal
+  const emit = defineEmits(['show','start-capture'])
+  const listRef = ref(null)
+  const items = ref([])
+  const loading = ref(false)
+  const selectedIndex = ref(null)
 
+  // Funció per seleccionar una fila
+  function select(i) { selectedIndex.value = i }
 
-// ====================================== Funcions de la UI
-// Funció per seleccionar una fila
-function select(i) { selectedIndex.value = i }
-
-// Funció pel botó "mostra"
-function showDetails(item, i) { 
-  selectedIndex.value = i; 
-  emit('show', item) 
-}
-
-// Funció per calcular les opcions parcials dins d'una opció
-function countPartialOptions(option) {
-  return option.partial_options.length
-}
-// Funcions getter
-function getMCR(option, poIndex) {
-  if (option.partial_options[poIndex]?.mcr_mhz == null) 
-    return null
-  return option.partial_options[poIndex].mcr_mhz + ' MHz'
-}
-function getFCR(option, poIndex) {
-  if (option.partial_options[poIndex]?.fcr_ghz == null) 
-    return null
-  return option.partial_options[poIndex].fcr_ghz + ' GHz'
-}
-function getChans(option, poIndex) {
-  if (option.partial_options[poIndex]?.chans_needed == null) 
-    return null
-  return option.partial_options[poIndex].chans_needed
-}
-
-
-async function fetchOptions() {
-  loading.value = true
-  try {
-    const res = await fetch('http://localhost:5000/api/options')
-    if (!res.ok) throw new Error('Failed fetching')
-    const data = await res.json()
-    items.value = Array.isArray(data) ? data : (data.items || [])
-    if (items.value.length === 0) selectedIndex.value = null
-  } catch (e) {
-    console.error(e)
-  } finally {
-    loading.value = false
+  // Funció pel botó "mostra"
+  function showDetails(item, i) { 
+    selectedIndex.value = i; 
+    emit('show', item) 
   }
-}
 
-function getSelectedItem(){
-  if (selectedIndex.value == null) return null
-  return items.value[selectedIndex.value]
-}
-// expose refresh for parent
-function refresh() { fetchOptions() }
+  // Funció per calcular les opcions parcials dins d'una opció
+  function countPartialOptions(option) {
+    return option.partial_options.length
+  }
+  // Funcions getter
+  function getMCR(option, poIndex) {
+    if (option.partial_options[poIndex]?.mcr_mhz == null) 
+      return null
+    return option.partial_options[poIndex].mcr_mhz + ' MHz'
+  }
+  function getFCR(option, poIndex) {
+    if (option.partial_options[poIndex]?.fcr_ghz == null) 
+      return null
+    return option.partial_options[poIndex].fcr_ghz + ' GHz'
+  }
+  function getChans(option, poIndex) {
+    if (option.partial_options[poIndex]?.chans_needed == null) 
+      return null
+    return option.partial_options[poIndex].chans_needed
+  }
+  function getSelectedItem(){
+    if (selectedIndex.value == null) return null
+    return items.value[selectedIndex.value]
+  }
 
-defineExpose({ refresh, getSelectedItem })
+  // Funció per obtenir les opcions des del backend
+  async function fetchOptions() {
+    loading.value = true
+    // Fem un try/catch per si hi ha algun error en la crida al backend
+    try {
+      const res = await fetch('http://localhost:5000/api/options')
+      if (!res.ok) throw new Error('Failed fetching')
+      const data = await res.json()
+      items.value = Array.isArray(data) ? data : (data.items || [])
+      if (items.value.length === 0) selectedIndex.value = null
+    } catch (e) {
+      console.error(e)
+    } finally {
+      loading.value = false
+    }
+  }
 
-// initial fetch
-fetchOptions()
+  
+  // Funció per refrescar les opcions, l'exposem als components pares
+  function refresh() { fetchOptions() }
+  defineExpose({ refresh, getSelectedItem })
+
+  // initial fetch
+  fetchOptions()
 </script>
 
 <style scoped>

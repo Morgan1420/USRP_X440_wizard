@@ -38,28 +38,25 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import Plot from '../mid_components/Plot.vue'
+  // Imports
+  import { computed } from 'vue'
+  import Plot from '../mid_components/Plot.vue'
 
-const props = defineProps({ option: { type: Object, default: () => ({}) } })
-const emit = defineEmits(['close'])
+  // Props i emits
+  const props = defineProps({ option: { type: Object, default: () => ({}) } })
+  const emit = defineEmits(['close'])
 
-function getPartialId(p, idx) {
-  return p?.partial_option_id ?? p?.id ?? p?.partial_id ?? idx
-}
+  // Funció getter per obtenir l'ID d'una partial option
+  function getPartialId(p, idx) {
+    return p?.partial_option_id ?? p?.id ?? p?.partial_id ?? idx
+  }
 
-function formatValue(v) {
-  if (v == null) return ''
-  if (Array.isArray(v)) return `<${v.length}>`
-  if (typeof v === 'object') return JSON.stringify(v)
-  return String(v)
-}
-
-const plotWidth = computed(() => Math.min(900, Math.max(300, (window?.innerWidth || 900) - 160)))
+  // Funció (computed per obtenir l'amplada del plot segons l'amplada de la finestra)
+  const plotWidth = computed(() => Math.min(900, Math.max(300, (window?.innerWidth || 900) - 160)))
 </script>
 
 <style scoped>
-.overlay { 
+  .overlay { 
     position: fixed; 
     inset: 0; 
     display:flex; 
@@ -67,8 +64,8 @@ const plotWidth = computed(() => Math.min(900, Math.max(300, (window?.innerWidth
     justify-content:center; 
     background: rgba(0,0,0,0.45); 
     z-index: 60; 
-}
-.panel { 
+  }
+  .panel { 
     width: 90%; 
     max-width: 1000px; 
     max-height: 90vh; 
@@ -79,9 +76,9 @@ const plotWidth = computed(() => Math.min(900, Math.max(300, (window?.innerWidth
     border-radius:8px; 
      
     box-shadow: 0 8px 30px rgba(0,0,0,0.2); 
-}
+  }
 
-.panel-header { 
+  .panel-header { 
     padding-left:5%;
     padding-right:2%;
     padding-top:12px;
@@ -89,23 +86,23 @@ const plotWidth = computed(() => Math.min(900, Math.max(300, (window?.innerWidth
     display:flex; 
     justify-content:space-between; 
     align-items:center; 
-    gap:12px; 
-}
-.panel-header h3 { 
+    gap:12px;   
+  }
+  .panel-header h3 { 
     margin:0; 
     font-size:1.5rem; 
-}
+  }
 
-.close-btn { 
+  .close-btn { 
     padding:8px 12px;
     background:#d54545; 
     color:#fff;
     border-radius:6px; 
     border:none;
     cursor:pointer 
-}
+  }
 
-.meta { 
+  .meta { 
     width:80%; 
     padding-inline: 10%;
     margin-top:12px; 
@@ -114,43 +111,43 @@ const plotWidth = computed(() => Math.min(900, Math.max(300, (window?.innerWidth
     justify-content:space-between;
     gap:18px;
     flex-wrap:wrap
-}
+  }
 
-.plot { 
-  width:90%;
-  margin-inline:5%; 
-  
-  margin-top:18px;
-  border:1px solid #eee; 
-  border-radius:6px;
-  background:#fafafa
-}
-.plot-partial { 
-  width:100%;
-  margin-top:12px;
-  border:1px solid #eee; 
-  border-radius:6px;
-  background:#fafafa
-}
+  .plot { 
+    width:90%;
+    margin-inline:5%; 
+    
+    margin-top:18px;
+    border:1px solid #eee; 
+    border-radius:6px;
+    background:#fafafa
+  }
+  .plot-partial { 
+    width:100%;
+    margin-top:12px;
+    border:1px solid #eee; 
+    border-radius:6px;
+    background:#fafafa
+  }
 
 
-.partial { 
-  width:90%;
-  margin-inline:5%;
-  margin-top:18px;
-  padding-top:12px;
-  border-top:1px solid #eee 
-}
-.partial-meta-1, .partial-meta-2 { 
+  .partial { 
+    width:90%;
+    margin-inline:5%;
+    margin-top:18px;
+    padding-top:12px;
+    border-top:1px solid #eee 
+  }
+  .partial-meta-1, .partial-meta-2 { 
     display:flex; 
     justify-content:space-between;
     gap:18px; 
     flex-wrap:wrap;
     margin-bottom:12px;
-}
-.partial-meta-1 div, .partial-meta-2 div { 
-  max-width:35%;
-  text-align: center;
-}
-.meta-line { margin:6px 0 }
+  }
+  .partial-meta-1 div, .partial-meta-2 div { 
+    max-width:35%;
+    text-align: center;
+  }
+  .meta-line { margin:6px 0 }
 </style>

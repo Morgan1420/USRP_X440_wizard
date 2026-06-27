@@ -3,16 +3,16 @@ from flask_cors import CORS
 import os, json, traceback
 import threading
 
-# Import files from repo
+# Importem els scripts de processament que necessitem
 from processing_scripts import generate_options as gen
 from processing_scripts import USRP_handler as usrp_handler
 from processing_scripts import capture_2 as capture_script
 
-# Create Flask app 
+# Creem la app de Flask
 app = Flask(__name__)
 CORS(app)
 
-# Define paths for JSON and capture files
+# Definim els "paths" per als diferents fitxers/directoris que utilitzarem
 ASSIST_DIR = os.path.join('./', 'assistanceJSONs')
 FILTERS_PATH = os.path.join(ASSIST_DIR, 'filters.json')
 PARTIAL_PATH = os.path.join(ASSIST_DIR, 'partialOptions.json')
@@ -23,16 +23,15 @@ CAPTURE_INFO_PATH = os.path.join(ASSIST_DIR, 'infoCaptura.json')
 CAPTURE_DIR = os.path.join('./', 'captureFiles')
 
 # ============================ FUNCIONS ============================ #
-# Function to read from a JSON file
+# Funció per llegir un JSON
 def read_json(p):
-  # The try is for any error that can happen
   try:
     with open(p, 'r', encoding='utf-8') as f:
       return json.load(f)
   except Exception:
     return None
 
-# Write data to a JSON file
+# Funció per escriure a un fitxer JSON
 def write_json(p, data):
   with open(p, 'w', encoding='utf-8') as f:
     json.dump(data, f, ensure_ascii=False, indent=2)
@@ -42,125 +41,130 @@ def write_json(p, data):
 
 # ============================ APP ROUTES ============================ #  
 
-# +-+-+-+-+-+-+-+-+ FILTERS AND OPTIONS +-+-+-+-+-+-+-+-+ #
+# +-+-+-+-+-+-+-+-+ FILTRES i OPCIONS +-+-+-+-+-+-+-+-+ #
  
-# Route to get the current filters
+# Ruta per carregar els filtres
 @app.route('/api/load_filters', methods=['GET'])
 def get_filters():
   print("[API] (GET /api/load_filters) - Loading filters...")
   data = read_json(FILTERS_PATH) or {}
   return jsonify(data)
 
-# Route to update the filters
+# Ruta per guardar els filtres
 @app.route('/api/store_filters', methods=['POST'])
 def post_filters():
+  # Notifiquem a l'usuari per la terminal
   print("[API] (POST /api/store_filters) - Storing filters...")
   
-  # The try is for any error that can happen
   try:
-    # Get the JSON from the request
+    # Recuperem les dades del JSON
     obj = request.get_json() or {}
     
-    # Create an output JSON like var to write on the JSON filters file
+    # Creem un diccionari amb les dades que volem guardar
     out = {
       'min_channels': obj.get('min_channels'),
       'max_channels': obj.get('max_channels'),
       'sorting': obj.get('sorting', '')
     }
     
-    # Write the filters to the JSON file and return error if it fails
+    # Escrivim el fitxer amb les dades
     ok = write_json(FILTERS_PATH, out)
     if not ok:
       return jsonify({'ok': False, 'message': 'Could not write filters file'}), 500
     return jsonify({'ok': True})
   
+  
   except Exception as e:
-    # Error exception
+    # Error d'excepició
     traceback.print_exc()
     return jsonify({'ok': False, 'message': str(e)}), 500
 
-# Route to generate options
+# Ruta per generar les opcions
 @app.route('/api/generate', methods=['POST'])
 def generate():
+  # Notifiquem a l'usuari per la terminal
   print("[API] (POST /api/generate) - Generating capture options...")
   
-  # The try is for any error that can happen
   try:
-    # Get the JSON from the request and extract f_c and bw
+    # Recuperem les dades del JSON
     payload = request.get_json() or {}
+    
+    # Recuperem els valors de f_c i bw del payload
     f_c = payload.get('f_c')
     bw = payload.get('bw')
         
-    # Validate and process inputs
+    # Processem els inputs i els validem
     ok, userInputs = gen.processInputs(f_c=f_c, bw=bw)
     if not ok:
-      # If inputs are not valid return error
       return jsonify({'ok': False, 'message': userInputs}), 400
 
-    # STEP 1: Generate partial options
+    # Procès per passos sobre com generar les opcions de captura basades en els inputs de l'usuari
+    # PAS 1: Generem les totes les opcions parcials
     p_ok = gen.generatePartialOptions(userInputs['f_min'], userInputs['f_max'], MCR_TABLE_PATH, PARTIAL_PATH)
     if not p_ok:
       return jsonify({'ok': False, 'message': 'Failed generating partial options'}), 500
 
-    # STEP 2: Generate complete options based on partial options
+    # PAS 2: En base a les opcions parcials anteriors generem totes les combinacions d'opcions parcials que completen la banda completa
     c_ok = gen.generateCompleteOptions(userInputs['f_min'], userInputs['f_max'], PARTIAL_PATH)
     if not c_ok:
       return jsonify({'ok': False, 'message': 'Failed generating complete options'}), 500
 
-    # STEP 3: Filter and sort the complete options
+    # PAS 3: Filtrem i ordenem les opcions
     f_ok = gen.filter_and_sort(COMPLETE_PATH, FILTERS_PATH)
     if not f_ok:
       return jsonify({'ok': False, 'message': 'Failed filtering options'}), 500
 
-    # Return the filtered options to the frontend
+    # Finalment retornem les dades filtrades al frontend
     items = read_json(FILTERED_PATH) or []
     return jsonify({'ok': True, 'count': len(items), 'items': items})
   
   except Exception as e:
-    # Error exception
+    # Excepció
     traceback.print_exc()
     return jsonify({'ok': False, 'message': str(e)}), 500
 
 
-# Route to get all the options in case of reloading the list
+# Ruta per carregar les opcions filtrades
 @app.route('/api/options', methods=['GET'])
 def get_options():
   print("[API] (GET /api/options) - Loading options...")
-  # Return the filtered options to the frontend
+  # Retornar les dades del fitxer JSON amb les opcions filtrades
   data = read_json(FILTERED_PATH) or []
   return jsonify(data)
 
 
-# +-+-+-+-+-+-+-+-+ USRP AND CAPTURE +-+-+-+-+-+-+-+-+ #
+# +-+-+-+-+-+-+-+-+ USRP I CAPTURA +-+-+-+-+-+-+-+-+ #
 
-# Route to validate the connections to from the computer to the USRP
+# Ruta per validar les connexions a l'USRP  
 @app.route('/api/validate_connections', methods=['POST'])
-def validate_connections():
+def validate_connections(): 
+  # Notifiquem a l'usuari per la terminal
   print("[API] (POST /api/validate_connections) - Validating connections to the USRP...")
   
-  # The try is for any error that can happen
   try:
-    # Get the JSON from the request and extract the rows with the USRP info
+    # Recuperem les dades del JSON
     payload = request.get_json() or {}
+    
+    # Recuperem les files de connexions donades per l'usuari
     rows = payload.get('rows') or []
 
-    # Iterate though every connection given by the user
+    # Per cada fila (i.e. adreça):
     results = []
     for idx, r in enumerate(rows):
-      # Get the data from the row (in JSON format)
+      # Recuperem les dades de la fila
       name = r.get('name')
       connected = bool(r.get('connected'))
       ipAddr = r.get('ipAddr') or None
 
-      # If it's not connected there is no need to check it
+      # Si l?usuari ens diu que no està connnectada ni ho mirem
       if not connected:
         print(f"[API] - Row {idx} ({name}): Not connected, skipping validation.")
         status = '-'
       else:
-        # Execute the validation script
+        # En cas que l'usuari es cregui que està connectada executem l'escript de validació
         v = usrp_handler.validateConnectionToTheUSRP(ipAddr)
         
-        # Store and print the result of the validation in a "human readable" way
+        # Guardem el resultat de la validació i mostrem un missatge a la terminal
         if v is True:
           print(f"[API] - Row {idx} ({name}): Connection to {ipAddr} is valid.")
           status = 'Yes'
@@ -170,71 +174,68 @@ def validate_connections():
         else:
           status = '-'
       
-      # Store the result in the results list for the frontend
+      # Guardem les dades en el format correcte per retornar-les al frontend
       results.append({
         'name': name,
         'ipAddr': ipAddr,
         'status': status
       })
 
-    # Return the results to the frontend
+    # Retornem les dades al frontend
     return jsonify({'ok': True, 'results': results})
   
   except Exception as e:
-    # Error exception
+    # Error d'excepció
     print("[API] Error validating connections:")
     traceback.print_exc()
     return jsonify({'ok': False, 'message': str(e)}), 500
     
 
 
-# Route to save the capture info and trigger the capture script
+# Ruta que inicialitza una captura 
 @app.route('/api/start_capture', methods=['POST'])
 def start_capture():
+  # Notifiquem a l'usuari per la terminal
   print("[API] (POST /api/start_capture) - Starting capture...")
   
-  # The try is for any error that can happen
   try:
-    # Get the JSON from the request
+    # Recuperem les dades del JSON
     payload = request.get_json() or {}
     if not payload:
-      # If no info was given return error
       return jsonify({'ok': False, 'message': 'Empty payload'}), 400
     
-    # Save the capture info to a JSON file
+    # Guardem la informació a un fitxer JSON
     out_path = os.path.join(ASSIST_DIR, 'infoCaptura.json')
-    
     ok = write_json(out_path, payload)
     if not ok:
       return jsonify({'ok': False, 'message': 'Failed writing file'}), 500
     
+    # Notifiquem a l'usuari per la terminal que hem guardat la informació
     print(f"[API] Saved capture information to {out_path}")
 
-    # Trigger capture
-    # The try except is for any error that can happen
+    
+    # Executem la captura (amb try/except perque caution al jugar amb els threads)
     try:
-      # We create a new thread so that the HTTP request doesn't block while the capture script is running.
+      # Creem un nou thread per no bloquejar la sol·licitud HTTP mentre s'executa l'script de captura.
       t = threading.Thread(target=capture_script.capture, daemon=True)
-      t.start()
+      t.start() # Iniciem el thread
       capture_started = True
     except Exception as e:
-      # Playing with threads can be tricky, that's why the try/except exists
       print('Error starting capture:')
       traceback.print_exc()
       capture_started = False
 
-    # Return the path where the capture was saved
+    # Retornem la resposta al frontend amb l'estat de la captura
     return jsonify({'ok': True, 'path': out_path, 'capture_started': capture_started})
  
   except Exception as e:
-    # Error exception
     print('Error saving capture:')
     traceback.print_exc()
     return jsonify({'ok': False, 'message': str(e)}), 500
 
 
-# ============================= RUN APP (MAIN) ============================ #
+# ============================= APP (MAIN) ============================ #
 if __name__ == '__main__':
-  # Execute el backend amb Flask al localhost al port 5000
+  # Executem el backend a localhost:5000
   app.run(host='127.0.0.1', port=5000)
 

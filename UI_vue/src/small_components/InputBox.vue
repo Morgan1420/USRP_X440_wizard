@@ -19,122 +19,131 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+  import { ref, computed, watch } from 'vue'
 
-const props = defineProps({
-  label: { type: String, default: '' },
-  placeholder: { type: String, default: '' },
-  multipliers: { type: Array, default: () => [] },
-  unit: { type: String, default: '' },
-  defaultMultiplierIndex: { type: Number, default: 0 },
-  labelGap: { type: Number, default: 100 }
-})
-const emit = defineEmits(['update:text', 'change'])
-
-const text = ref(props.placeholder || '')
-const active = ref(false)
-
-const normalizedMultipliers = computed(() => {
-  return props.multipliers.map(m => {
-    if (Array.isArray(m) && m.length >= 2) return { label: String(m[0]), value: Number(m[1]) }
-    if (m && typeof m === 'object') return { label: String(m.label ?? ''), value: Number(m.value ?? 1) }
-    return { label: String(m), value: 1 }
+  // Props i emits
+  const props = defineProps({
+    label: { type: String, default: '' },
+    placeholder: { type: String, default: '' },
+    multipliers: { type: Array, default: () => [] },
+    unit: { type: String, default: '' },
+    defaultMultiplierIndex: { type: Number, default: 0 },
+    labelGap: { type: Number, default: 100 }
   })
-})
+  const emit = defineEmits(['update:text', 'change'])
 
-const selectedMultiplier = ref(
-  normalizedMultipliers.value.length ? Math.max(0, Math.min(props.defaultMultiplierIndex, normalizedMultipliers.value.length - 1)) : null
-)
+  // Definició de variables
+  const text = ref(props.placeholder || '')
+  const active = ref(false)
 
-watch(() => props.multipliers, () => {
-  selectedMultiplier.value = normalizedMultipliers.value.length ? Math.max(0, Math.min(props.defaultMultiplierIndex, normalizedMultipliers.value.length - 1)) : null
-})
+  // Funció (computed) per normalitzar els multiplicadors a un format consistent (util per a altres vars)
+  const normalizedMultipliers = computed(() => {
+    return props.multipliers.map(m => {
+      if (Array.isArray(m) && m.length >= 2) return { label: String(m[0]), value: Number(m[1]) }
+      if (m && typeof m === 'object') return { label: String(m.label ?? ''), value: Number(m.value ?? 1) }
+      return { label: String(m), value: 1 }
+    })
+  })
+  // Extraiem l'índex del multiplicador seleccionat, amb un valor per defecte
+  const selectedMultiplier = ref(
+    normalizedMultipliers.value.length ? Math.max(0, Math.min(props.defaultMultiplierIndex, normalizedMultipliers.value.length - 1)) : null
+  )
 
-function selectMultiplier(i) {
-  selectedMultiplier.value = i
-  emit('change', getComputedValue())
-}
+  // Watcher per actualitzar l'índex del multiplicador seleccionat quan canvia la llista de multiplicadors
+  watch(() => props.multipliers, () => {
+    selectedMultiplier.value = normalizedMultipliers.value.length ? Math.max(0, Math.min(props.defaultMultiplierIndex, normalizedMultipliers.value.length - 1)) : null
+  })
 
-function onInput(e) {
-  text.value = e.target.value
-  emit('update:text', text.value)
-  emit('change', getComputedValue())
-}
+  // Funció per seleccionar un multi.
+  function selectMultiplier(i) {
+    selectedMultiplier.value = i
+    emit('change', getComputedValue())
+  }
 
-function onEnter() {
-  active.value = false
-}
-
-function getMultiplierValue() {
-  return normalizedMultipliers.value.length && selectedMultiplier.value != null ? normalizedMultipliers.value[selectedMultiplier.value].value : 1.0
-}
-
-function getMultiplierLabel() {
-  return normalizedMultipliers.value.length && selectedMultiplier.value != null ? normalizedMultipliers.value[selectedMultiplier.value].label : ''
-}
-
-function getComputedValue() {
-  const n = parseFloat(text.value)
-  if (Number.isNaN(n)) return null
-  return n * getMultiplierValue()
-}
-
-defineExpose({
-  getComputedValue,
-  getMultiplierValue,
-  getMultiplierLabel,
-  getText: () => text.value,
-  setText: (v) => {
-    text.value = v
+  // Funció per gestionar l'entrada de text i emetre els events corresponents
+  function onInput(e) {
+    text.value = e.target.value
     emit('update:text', text.value)
     emit('change', getComputedValue())
   }
-})
+
+  // Aquesta funció està perquè l'usuari pugui prémer Enter
+  function onEnter() {
+    active.value = false
+  }
+
+  // Funció per obtenir el valor del multiplicador seleccionat
+  function getMultiplierValue() {
+    return normalizedMultipliers.value.length && selectedMultiplier.value != null ? normalizedMultipliers.value[selectedMultiplier.value].value : 1.0
+  }
+  // Funció per obtenir l'etiqueta del multiplicador seleccionat
+  function getMultiplierLabel() {
+    return normalizedMultipliers.value.length && selectedMultiplier.value != null ? normalizedMultipliers.value[selectedMultiplier.value].label : ''
+  }
+  // Funció per obtenir el valor computat (text * multiplicador)
+  function getComputedValue() {
+    const n = parseFloat(text.value)
+    if (Number.isNaN(n)) return null
+    return n * getMultiplierValue()
+  }
+
+  // Llistat de totes les variables i funcions que exposem a components pares
+  defineExpose({
+    getComputedValue,
+    getMultiplierValue,
+    getMultiplierLabel,
+    getText: () => text.value,
+    setText: (v) => {
+      text.value = v
+      emit('update:text', text.value)
+      emit('change', getComputedValue())
+    }
+  })
 
 </script>
 
 <style scoped>
-.inputbox { 
-  display: flex;
-  align-items: center;
-  font-family: Arial, Helvetica, sans-serif; 
-  font-size: 1.5rem;
-}
+  .inputbox { 
+    display: flex;
+    align-items: center;
+    font-family: Arial, Helvetica, sans-serif; 
+    font-size: 1.5rem;
+  }
 
-.label { 
-  margin-right: 16px;
-  color: #111;
-}
+  .label { 
+    margin-right: 16px;
+    color: #111;
+  }
 
-.text-input { 
-  min-width: 160px;
-  padding: 6px 8px; 
-  border: 2px solid #bbb; 
-  border-radius: 4px; 
-  font-size: 1.2rem;
-}
+  .text-input { 
+    min-width: 160px;
+    padding: 6px 8px; 
+    border: 2px solid #bbb; 
+    border-radius: 4px; 
+    font-size: 1.2rem;
+  }
 
-.multipliers { 
-  display: flex; 
-  margin-left: 8px; 
-}
-.mult-btn { 
-  margin-right: 6px;
-  padding: 6px 10px;
+  .multipliers { 
+    display: flex; 
+    margin-left: 8px; 
+  }
+  .mult-btn { 
+    margin-right: 6px;
+    padding: 6px 10px;
 
-  background: #fff; 
-  border: 2px solid #aaa;  
-  border-radius: 4px; 
-  
-  cursor: pointer;
-  
-  font-size: 1.2rem;
-}
-.mult-btn.selected { 
-  background: #e6e6e6;
-}
-.unit { 
-  margin-left: 8px;
-  align-content: center;
-}
+    background: #fff; 
+    border: 2px solid #aaa;  
+    border-radius: 4px; 
+
+    cursor: pointer;
+
+    font-size: 1.2rem;
+  }
+  .mult-btn.selected { 
+    background: #e6e6e6;
+  }
+  .unit { 
+    margin-left: 8px;
+    align-content: center;
+  }
 </style>

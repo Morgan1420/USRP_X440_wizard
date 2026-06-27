@@ -28,66 +28,80 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
 
-const props = defineProps({ option: { type: Object, default: null } })
-const emit = defineEmits(['update:sampleRate'])
+  import { ref, computed, watch } from 'vue'
 
-const selected = ref('auto')
-const manualValue = ref('')
+  // Props i emits
+  const props = defineProps({ option: { type: Object, default: null } })
+  const emit = defineEmits(['update:sampleRate'])
+
+  // Variables
+  const selected = ref('auto')
+  const manualValue = ref('')
   const captureTime = ref('')
 
-// derive partials from option similarly to PortsConnections
-const partials = computed(() => {
-  if (!props.option) return []
-  return props.option.partial_options || props.option.partials || []
-})
+  // Funció (computed) per obtenir la llista d'opcions parcials (partials) a partir de l'objecte option
+  const partials = computed(() => {
+    if (!props.option) return []
+    return props.option.partial_options || props.option.partials || []
+  })
 
-function computeChannelBWsFromPartials(parts){
-  const bws = []
-  for (let pi = 0; pi < parts.length; pi++){
-    const p = parts[pi]
-    const fs = Number(p?.f_start ?? p?.[0] ?? 0)
-    const fe = Number(p?.f_end ?? p?.[1] ?? 0)
-    const num = Math.max(1, Number(p?.chans_needed ?? p?.chansNeeded ?? p?.chans ?? 1))
-    const total = Math.max(0, fe - fs)
-    const piece = num > 0 ? total / num : total
-    for (let i = 0; i < num; i++){
-      const s = fs + i * piece
-      const e = (i < num - 1) ? s + piece : fe
-      const bw = Math.abs(e - s)
-      bws.push(bw)
+  // Funció per calcular les amplades de banda de cada partial option
+  function computeChannelBWsFromPartials(parts){
+    const bws = []
+
+    // Per cada partial option
+    for (let pi = 0; pi < parts.length; pi++){
+      // Recuperem l'opció parcial
+      const p = parts[pi] 
+
+      // Extraiem: freq. inicial, freq. final, nombre de canals i amplada de banda per canal
+      const fs = Number(p?.f_start ?? p?.[0] ?? 0)
+      const fe = Number(p?.f_end ?? p?.[1] ?? 0)
+      const num = Math.max(1, Number(p?.chans_needed ?? p?.chansNeeded ?? p?.chans ?? 1))
+      const total = Math.max(0, fe - fs)
+      const piece = num > 0 ? total / num : total
+
+      // Per cada canal, calculem la seva amplada de banda i l'afegim a la llista
+      for (let i = 0; i < num; i++){
+        const s = fs + i * piece
+        const e = (i < num - 1) ? s + piece : fe
+        const bw = Math.abs(e - s)
+        bws.push(bw)
+      }
     }
+    return bws
   }
-  return bws
-}
+  // Extraiem les amplades de banda dels canals a partir de la funció anterior
+  const channelBws = computed(() => computeChannelBWsFromPartials(partials.value))
 
-const channelBws = computed(() => computeChannelBWsFromPartials(partials.value))
+  // Indiquem que es pot seleccionar l'opció manual per si totes les amplades de banda dels canals són menors a 200MHz (requisit de la USRP)
+  const showManual = computed(() => {
+    if (!channelBws.value || channelBws.value.length === 0) return true
+    return channelBws.value.every(bw => bw < 200e6)
+  })
 
-// show manual field only when all channels bw < 200 MHz, or if there are no channels
-const showManual = computed(() => {
-  if (!channelBws.value || channelBws.value.length === 0) return true
-  return channelBws.value.every(bw => bw < 200e6)
-})
+  // Si l'opció manual no es mostra i estava seleccionada, canviem a automàtic
+  watch(showManual, (v) => { if (!v && selected.value === 'manual') selected.value = 'auto' })
 
-// enforce single selection; if manual becomes unavailable, switch to auto
-watch(showManual, (v) => { if (!v && selected.value === 'manual') selected.value = 'auto' })
+  // Funció per seleccionar una opció (auto/manual) i emetre l'event corresponent
+  function selectOption(opt){
+    if (opt === 'manual' && !showManual.value) return
+    selected.value = opt
+    emit('update:sampleRate', { mode: selected.value, manualValue: manualValue.value })
+  }
 
-function selectOption(opt){
-  if (opt === 'manual' && !showManual.value) return
-  selected.value = opt
-  emit('update:sampleRate', { mode: selected.value, manualValue: manualValue.value })
-}
+  // Watcher per emetre l'event quan canvia qualsevol de les variables (selected, manualValue, captureTime)
+  watch([selected, manualValue, captureTime], () => {
+    emit('update:sampleRate', { mode: selected.value, manualValue: manualValue.value, captureTime: captureTime.value })
+  })
 
- watch([selected, manualValue, captureTime], () => {
-  emit('update:sampleRate', { mode: selected.value, manualValue: manualValue.value, captureTime: captureTime.value })
- })
-
-function getConfig(){
-  return { mode: selected.value, manualValue: manualValue.value, captureTime: captureTime.value }
-}
-
-defineExpose({ getConfig })
+  // Funció per obtenir la configuració actual (mode, valor manual i temps de captura)
+  function getConfig(){
+    return { mode: selected.value, manualValue: manualValue.value, captureTime: captureTime.value }
+  }
+  // Exposem getConfig als components pares
+  defineExpose({ getConfig })
 </script>
 
 

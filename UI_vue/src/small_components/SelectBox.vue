@@ -17,126 +17,140 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+  import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 
-const props = defineProps({
-  label: { type: String, default: '' },
-  options: { type: Array, default: () => [] },
-  defaultIndex: { type: Number, default: 0 },
-  labelGap: { type: Number, default: 100 }
-})
-const emit = defineEmits(['change'])
-
-const wrapperRef = ref(null)
-const dropdownRef = ref(null)
-const expanded = ref(false)
-const expandUp = ref(false)
-const selected = ref(props.options.length ? Math.max(0, Math.min(props.defaultIndex, props.options.length - 1)) : null)
-
-const selectedLabel = computed(() => selected.value != null ? props.options[selected.value] : '')
-
-function toggle() {
-  if (expanded.value) {
-    expanded.value = false
-    return
-  }
-  expanded.value = true
-  nextTick(() => {
-    if (!wrapperRef.value || !dropdownRef.value) return
-    const wrapperRect = wrapperRef.value.getBoundingClientRect()
-    const dropdownHeight = dropdownRef.value.getBoundingClientRect().height
-    expandUp.value = (wrapperRect.bottom + dropdownHeight) > window.innerHeight
+  // Props i emits
+  const props = defineProps({
+    label: { type: String, default: '' },
+    options: { type: Array, default: () => [] },
+    defaultIndex: { type: Number, default: 0 },
+    labelGap: { type: Number, default: 100 }
   })
-}
+  const emit = defineEmits(['change'])
 
-function selectOption(i) {
-  selected.value = i
-  emit('change', props.options[i])
-  expanded.value = false
-}
+  // Definició de variables 
+  const wrapperRef = ref(null)
+  const dropdownRef = ref(null)
+  const expanded = ref(false)
+  const expandUp = ref(false)
+  const selected = ref(props.options.length ? Math.max(0, Math.min(props.defaultIndex, props.options.length - 1)) : null)
+  const selectedLabel = computed(() => selected.value != null ? props.options[selected.value] : '')
 
-function handleDocumentClick(e) {
-  if (!wrapperRef.value) return
-  if (!wrapperRef.value.contains(e.target)) {
-    expanded.value = false
+  // Funció per canviar l'estat del desplegable
+  function toggle() {
+    // Si ja està expandit, el tanquem, si nó l'obrim
+    if (expanded.value) {
+      expanded.value = false
+      return
+    }
+    expanded.value = true
+
+    nextTick(() => {
+      if (!wrapperRef.value || !dropdownRef.value) return
+      const wrapperRect = wrapperRef.value.getBoundingClientRect()
+      const dropdownHeight = dropdownRef.value.getBoundingClientRect().height
+      expandUp.value = (wrapperRect.bottom + dropdownHeight) > window.innerHeight
+    })
   }
-}
 
-function getLengthLabelPx() {
-  if (!wrapperRef.value) return 0
-  const labelEl = wrapperRef.value.querySelector('.label')
-  return labelEl ? labelEl.getBoundingClientRect().width + 16 : 0 
-}
+  // Funció per canviar la opció seleccionada
+  function selectOption(i) {
+    selected.value = i
+    emit('change', props.options[i])
 
-function getWidthControlPx() {
-  if (!wrapperRef.value) return 0
-  const controlEl = wrapperRef.value.querySelector('.control')
-  return controlEl ? controlEl.getBoundingClientRect().width : 0 
-}
+    // Tanquem el desplegable després de seleccionar una opció
+    expanded.value = false 
+  }
 
-onMounted(() => {
-  document.addEventListener('click', handleDocumentClick)
-})
+  // Funció per tancar el desplegable si es fa click fora
+  function handleDocumentClick(e) {
+    if (!wrapperRef.value) return
+    if (!wrapperRef.value.contains(e.target)) {
+      expanded.value = false
+    }
+  }
 
-onBeforeUnmount(() => {
-  document.removeEventListener('click', handleDocumentClick)
-})
+  // Funció per obtenir la llargada del label i del control
+  function getLengthLabelPx() {
+    if (!wrapperRef.value) return 0
+    const labelEl = wrapperRef.value.querySelector('.label')
+    return labelEl ? labelEl.getBoundingClientRect().width + 16 : 0 
+  }
 
-function getValue() { return selected.value != null ? props.options[selected.value] : null }
+  // Funció per obtenir l'amplada del control 
+  function getWidthControlPx() {
+    if (!wrapperRef.value) return 0
+    const controlEl = wrapperRef.value.querySelector('.control')
+    return controlEl ? controlEl.getBoundingClientRect().width : 0 
+  }
 
-defineExpose({ getValue, setSelected: (i) => { selected.value = i } })
+  // Funció que retorna el valor de la opció seleccionada
+  function getValue() { return selected.value != null ? props.options[selected.value] : null }
+
+  // Exposem la funció getValue per poder ser cridada des de fora del component
+  defineExpose({ getValue: () => selected.value != null ? props.options[selected.value] : null })
+
+  // onMounted i onBeforeUnmount per afegir i treure l'event listener del document
+  onMounted(() => {
+    document.addEventListener('click', handleDocumentClick)
+  })
+
+  onBeforeUnmount(() => {
+    document.removeEventListener('click', handleDocumentClick)
+  })
+  
 </script>
 
 <style scoped>
-.selectbox { display:flex; align-items: center; position:relative; font-family: Arial, Helvetica, sans-serif; font-size: 1.5rem; }
-.label { 
-  margin-right: 16px; 
-  color: #111; 
-}
-.control {
-  display:flex;
-  align-items:center;
-  border: 2px solid #bbb;
-  padding: 6px 8px;
-  background: #fff;
-  cursor: pointer;
-  border-radius: 4px;
-}
-.selected { 
-  min-width: 160px;
-  font-size: 1.2rem;
-}
-.arrow { 
-  margin-left: 8px;
-}
+  .selectbox { display:flex; align-items: center; position:relative; font-family: Arial, Helvetica, sans-serif; font-size: 1.5rem; }
+  .label { 
+    margin-right: 16px; 
+    color: #111; 
+  }
+  .control {
+    display:flex;
+    align-items:center;
+    border: 2px solid #bbb;
+    padding: 6px 8px;
+    background: #fff;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .selected { 
+    min-width: 160px;
+    font-size: 1.2rem;
+  }
+  .arrow { 
+    margin-left: 8px;
+  }
 
-.dropdown {
-  position: absolute;
-  top: 100%;
-  z-index: 20;
-  background: #fff;
-  border: 1px solid #ccc;
-  width: 220px;
-  border-radius: 4px;
-  margin-top: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
-.dropdown.up { 
-  bottom: 100%; 
-  top: auto;
-  margin-top: 0; 
-  margin-bottom: 6px; 
-}
-.option { 
-  padding: 8px 10px; 
-  border-bottom: 1px solid #eee; 
-  cursor: pointer; 
-  font-size: 1.2rem;
-}
-.option:last-child { 
-  border-bottom: none
-}
-.option:hover {
-  background: #f5f5f5
-}
+  .dropdown {
+    position: absolute;
+    top: 100%;
+    z-index: 20;
+    background: #fff;
+    border: 1px solid #ccc;
+    width: 220px;
+    border-radius: 4px;
+    margin-top: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .dropdown.up { 
+    bottom: 100%; 
+    top: auto;
+    margin-top: 0; 
+    margin-bottom: 6px; 
+  }
+  .option { 
+    padding: 8px 10px; 
+    border-bottom: 1px solid #eee; 
+    cursor: pointer; 
+    font-size: 1.2rem;
+  }
+  .option:last-child { 
+    border-bottom: none
+  }
+  .option:hover {
+    background: #f5f5f5
+  }
 </style>

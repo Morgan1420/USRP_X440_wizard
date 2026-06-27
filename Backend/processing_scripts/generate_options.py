@@ -1,7 +1,7 @@
 import json
 import math
 
-# Helper functions
+# Funcions auxiliars
 def readJSON(json_path):
     try:
         with open(json_path, 'r', encoding='utf-8') as file:
@@ -19,7 +19,7 @@ def storeJSON(data, json_path):
     except Exception as e:
         print(f"Error: saving JSON failed: {e}")
 
-# Input functions
+# Funcions d'entrada
 def areInputsValid(f_min, f_max, fc, bw):
     # F_min
     if f_min is None or f_min <= 0:
@@ -45,18 +45,18 @@ def areInputsValid(f_min, f_max, fc, bw):
     if bw > fc:
         return False, "Error: Valor per la banda passant (BW) massa alt. Ha de ser menor o igual a la freqüència central (Fc)."
 
-    # Else: if all is good
+    # Si tot és correcte
     return True, "Tots els paràmetres són vàlids."
 
 def processInputs(f_c, bw):    
     
-    # Calculate f_min and f_max based on f_c and bw
+    # Calculem f_min i f_max a partir de f_c i bw
     f_min = f_c - bw / 2
     f_max = f_c + bw / 2
     
-    # Store inputs if they are valid
+    # Guardem les dades si són vàlides
     if(areInputsValid(f_min=f_min, f_max=f_max, fc=f_c, bw=bw)):
-        # Create an empty dictionary of inputs
+        # Creem un diccionari buit amb les dades d'entrada
         userInputs = {"f_min": f_min, "f_max": f_max, "fc": f_c, "bw": bw}
         return True, userInputs
     
@@ -64,52 +64,52 @@ def processInputs(f_c, bw):
     return False, "Error: Hi ha un error amb els paràmetres d'entrada. Revisa els valors i torna-ho a intentar."
     
     
-# Generate Options Functions
+# Funcions per generar opcions
 def generatePartialOptions(f_min, f_max, mcr_converter_rates_table_path, partial_options_path):
-    # Create the array for the partialOptions
+    # Creem l'array per a les partialOptions
     partial_options = []
     
-    # Read mcr_converter_rates table JSON file
+    # Llegim el fitxer JSON de la taula mcr_converter_rates
     mcr_converter_rates_table = readJSON(mcr_converter_rates_table_path)
     if mcr_converter_rates_table is None:
         print("Error: No s'ha pogut carregar la taula de MCR i FCR des del fitxer JSON.")
         return False
 
-    # Iterate through every item (MCR) in the mcr_converter_rates table
+    # Iterem per cada element (MCR) de la taula mcr_converter_rates
     for entry in mcr_converter_rates_table:
-        # Extract the MCR (Master Clock Rate) in Hz
+        # Extreiem la MCR (Master Clock Rate) en Hz
         mcr_hz = entry["mcr_mhz"] * 1e6
         
-        # Extract the maximum BW allowed by the MCR
+        # Extreiem l'ample de banda màxim permès per la MCR
         usable_bw_per_chan = 0.8 * mcr_hz   
         
-        # Iterate through all the possible converter rate frequencies
+        # Iterem per totes les freqüències possibles del convertidor
         for fcr_ghz in entry["rfdc_converter_rates_ghz"]:
-            # Extract the FCR (Frequency Conversion Rate) in Hz
+            # Extreiem la FCR (Frequency Conversion Rate) en Hz
             fcr = fcr_ghz * 1e9
             
-            # Calculate the width of the Nyquist zones
+            # Calculem l'amplada de les zones de Nyquist
             nyquist_bw = fcr / 2
             
-            # Set the Nyquist zone margins to 80% the Nyquist zone (10% on each side)
+            # Fixem els marges de la zona de Nyquist al 80% de la zona (10% a cada costat)
             margin = 0.1 * nyquist_bw
             
-            # Iterate through zones (1st up to the 8th)
-            current_f_bottom = f_min # Helper variable to keep track of the frequencies
+            # Iterem per les zones (de la primera fins a la vuitena)
+            current_f_bottom = f_min # Variable auxiliar per fer el seguiment de les freqüències
             for zone_idx in range(1, 9): 
-                # Get the min and max frequencies of the current Nyquist zone
+                # Obtenim les freqüències mínima i màxima de la zona de Nyquist actual
                 zone_min = (zone_idx - 1) * nyquist_bw
                 zone_max = zone_idx * nyquist_bw
                 
-                # Define the "Safe Zone" within this Nyquist window
+                # Definim la "zona segura" dins d'aquesta finestra de Nyquist
                 safe_min = zone_min + margin
                 safe_max = zone_max - margin
                 
-                # Check if our target signal overlaps with this safe zone
+                # Comprovem si el senyal objectiu se solapa amb aquesta zona segura
                 overlap_min = max(current_f_bottom, safe_min)
                 overlap_max = min(f_max, safe_max)
                 
-                # If there is an overlap, we create a partial option for this zone
+                # Si hi ha solapament, creem una opció parcial per a aquesta zona
                 if overlap_max > overlap_min:
                     interest_bw = overlap_max - overlap_min
                     chans_needed = math.ceil(interest_bw / usable_bw_per_chan)
@@ -126,10 +126,10 @@ def generatePartialOptions(f_min, f_max, mcr_converter_rates_table_path, partial
                     }
                     partial_options.append(option)
                     
-                    # Update progress
+                    # Actualitzem el progrés
                     current_f_bottom = overlap_max
 
-    # Store the partial options in a json file
+    # Guardem les opcions parcials en un fitxer JSON
     storeJSON(partial_options, partial_options_path)
     
     return True
@@ -137,19 +137,19 @@ def generatePartialOptions(f_min, f_max, mcr_converter_rates_table_path, partial
 def generateCompleteOptions(f_min, f_max, partial_options_path):
     complete_options = []
     
-    # Read the partial options from the json file
+    # Llegim les opcions parcials des del fitxer JSON
     partial_options = readJSON(partial_options_path)
     if partial_options is None:
         print("Error: No s'ha pogut carregar les opcions parcials des del fitxer JSON.")
         return False
 
-    # Iterate through the partial options and generate complete options by combining them if needed   
+    # Iterem per les opcions parcials i generem opcions completes combinant-les si cal   
     while len(partial_options) > 0:
-        # Extract the first partial option and remove it from the list to avoid using it again
+        # Extreiem la primera opció parcial i la retirem de la llista per no reutilitzar-la
         partial_option = partial_options.pop(0) 
         
         if partial_option["is_complete"]:
-            # Create a complete option
+            # Creem una opció completa
             complete_option = {
                 "complete_option_id": len(complete_options),
                 "partial_options": [partial_option],
@@ -159,69 +159,69 @@ def generateCompleteOptions(f_min, f_max, partial_options_path):
                 "is_complete": True
                 }
 
-            # Add to the complete options list
+            # Afegim l'opció a la llista d'opcions completes
             complete_options.append(complete_option)
         else:
-            # We create a list of all the combinations (useful or not)
+            # Creem una llista amb totes les combinacions (útils o no)
             partial_options_combinations = [{"partial_options_list": [partial_option], "is_complete": False}]
             
-            # We create a list of the remaining partial options to analyse
+            # Creem una llista de les opcions parcials restants per analitzar
             partial_options_remaining = partial_options.copy()
             total_options_checked_since_last_expansion = 0
             
-            # While there are still partial options to analyse
+            # Mentre encara hi hagi opcions parcials per analitzar
             while total_options_checked_since_last_expansion < len(partial_options_remaining) and len(partial_options_remaining) > 0:
-                # Update flag
+                # Actualitzem el comptador
                 total_options_checked_since_last_expansion += 1
                 
-                # Extract the current partial option 
+                # Extreiem l'opció parcial actual
                 current_partial_option = partial_options_remaining.pop(0) # Remove it from the list
                 
-                # Check if the current partial option is already complete, if it is, we skip it
+                # Comprovem si l'opció parcial actual ja és completa; si ho és, la saltem
                 if current_partial_option["is_complete"]:
                     continue
                 
-                # Move the current partial option to the end of the list of combinations to analyse
+                # Moure l'opció parcial actual al final de la llista de combinacions per analitzar
                 partial_options_remaining.append(current_partial_option) 
                 
-                # See how the current partial option can be combined with the existing combinations to create new ones
+                # Veiem com es pot combinar l'opció parcial actual amb les combinacions existents per crear-ne de noves
                 for combination in partial_options_combinations:
-                    # Check if the combination is already complete, if it is, we skip it
+                    # Comprovem si la combinació ja és completa; si ho és, la saltem
                     if combination["is_complete"]:
                         continue
                     
-                    # If the current partial option f_min is smaller than the combination.list[-1] f_max and greater than the combination.list[-1] f_min but greater than the combination.list[-2] f_max(provided it exists), then we append it to the end of the combination list and check if it is complete.
+                    # Si el f_min de l'opció parcial actual és menor que el f_max de combination.list[-1] i més gran que el f_min de combination.list[-1] però més gran que el f_max de combination.list[-2] (si existeix), l'afegim al final de la llista i comprovem si és completa.
                     if current_partial_option["f_start"] < combination["partial_options_list"][-1]["f_end"] and current_partial_option["f_start"] > combination["partial_options_list"][-1]["f_end"] and current_partial_option["f_end"] > combination["partial_options_list"][-1]["f_end"] and (len(combination["partial_options_list"]) == 1 or current_partial_option["f_start"] > combination["partial_options_list"][-2]["f_end"]):
                         combination["partial_options_list"].append(current_partial_option)
                         
-                        # Check if the combination is complete
+                        # Comprovem si la combinació és completa
                         if(combination["partial_options_list"][-1]["f_end"] >= f_max and combination["partial_options_list"][0]["f_start"] <= f_min):
                             combination["is_complete"] = True
                         else:
-                            total_options_checked_since_last_expansion = 0 # We reset this counter since we have expanded at least one combination   
+                            total_options_checked_since_last_expansion = 0 # Reiniciem aquest comptador perquè hem expandit almenys una combinació   
                         
-                    # If the current partial option f_max is greater than the combination.list[0] f_min and smaller than the combination.list[0] f_max but smaller than the combination.list[1] f_min(provided it exists), then we append it to the start of the combination list and check if it is complete.
+                    # Si el f_max de l'opció parcial actual és més gran que el f_min de combination.list[0] i més petit que el f_max de combination.list[0] però més petit que el f_min de combination.list[1] (si existeix), l'afegim a l'inici de la llista i comprovem si és completa.
                     elif current_partial_option["f_end"] > combination["partial_options_list"][0]["f_start"] and current_partial_option["f_end"] < combination["partial_options_list"][0]["f_end"] and current_partial_option["f_start"] < combination["partial_options_list"][0]["f_start"] and (len(combination["partial_options_list"]) == 1 or current_partial_option["f_end"] < combination["partial_options_list"][1]["f_start"]):
                         combination["partial_options_list"].insert(0, current_partial_option)
                         
-                        # Check if the combination is complete
+                        # Comprovem si la combinació és completa
                         if(combination["partial_options_list"][-1]["f_end"] >= f_max and combination["partial_options_list"][0]["f_start"] <= f_min):
                             combination["is_complete"] = True
                         else:
-                            total_options_checked_since_last_expansion += 1 # We increment this counter since we have not expanded this combination
+                            total_options_checked_since_last_expansion += 1 # Incrementem aquest comptador perquè no hem expandit aquesta combinació
                             
                     
             
-            # Filter all bad combinations (not complete or with less than 8 channels)
+            # Filtrarem totes les combinacions dolentes (no completes o amb menys de 8 canals)
             correct_combinations = []
             for combination in partial_options_combinations:
                 total_chans_needed = sum([option["chans_needed"] for option in combination["partial_options_list"]])
                 if combination["is_complete"] and total_chans_needed <= 8:
                     correct_combinations.append(combination)
                 
-            # Append the correct combinations to the complete options list
+            # Afegim les combinacions correctes a la llista d'opcions completes
             for combination in correct_combinations:
-                # Create a complete option
+                # Creem una opció completa
                 complete_option = {
                     "complete_option_id": len(complete_options),
                     "partial_options": combination["partial_options_list"],
@@ -231,7 +231,7 @@ def generateCompleteOptions(f_min, f_max, partial_options_path):
                     "is_complete": True
                     }
 
-                # Add to the complete options list
+                # Afegim l'opció a la llista d'opcions completes
                 complete_options.append(complete_option)
         
          
@@ -242,26 +242,26 @@ def generateCompleteOptions(f_min, f_max, partial_options_path):
 
 def filter_and_sort(complete_options_path="./assistanceJSONs/completeOptions.json", filters_json_path='./assistanceJSONs/filters.json'):
     
-    # Read filters from tje JSON file
+    # Llegim els filtres des del fitxer JSON
     filters = readJSON(filters_json_path) or {}
     if filters is None:
         print("Error: No s'ha pogut carregar els filtres des del fitxer JSON.")
         return False
     
-    # Extract filters from the file
+    # Extreiem els filtres del fitxer
     min_ch = filters.get('min_channels') if isinstance(filters, dict) else None
     max_ch = filters.get('max_channels') if isinstance(filters, dict) else None
     sorting = (filters.get('sorting') if isinstance(filters, dict) else None) or ''
     sorting = sorting.strip().lower()
 
 
-    # Read complete options from the JSON file
+    # Llegim les opcions completes des del fitxer JSON
     complete_options = readJSON(complete_options_path)
     if complete_options is None:
         print("Error: No s'ha pogut carregar les opcions completes des del fitxer JSON.")
         return False
 
-    # Helper functions to extract sorting keys, handling None values
+    # Funcions auxiliars per extreure les claus d'ordenació, gestionant valors None
     def chans_needed_of(item):
         try:
             return int(item.get('chans_needed'))
@@ -274,36 +274,36 @@ def filter_and_sort(complete_options_path="./assistanceJSONs/completeOptions.jso
         except Exception:
             return None
 
-    # Filter implementation
+    # Implementació del filtratge
     filtered = []
     for item in complete_options:
-        # skip invalid items
+        # Saltem els elements invàlids
         if not isinstance(item, dict):
             continue
         
-        # Filter for min/max channels needed
+        # Filtratge pel mínim/màxim de canals necessaris
         ch = chans_needed_of(item)
         if min_ch is not None:
             if ch is None or ch < int(min_ch):
-                continue # If we don't pass the filter we skip to the next item
+                continue # Si no superem el filtre, passem al següent element
         if max_ch is not None:
             if ch is None or ch > int(max_ch):
                 continue
         
-        # Filter options with more than 2 partial options (USRP X440 only supports 2 different sample frequencies at the same time).
+        # Filtratge d'opcions amb més de 2 opcions parcials (l'USRP X440 només suporta 2 freqüències de mostreig diferents alhora).
         partials = item.get('partial_options', [])
         if len(partials) > 2:
             continue
         
         filtered.append(item)
 
-    # Sorting implementation
+    # Implementació de l'ordenació
     if sorting == 'max chan' or sorting == 'max chan(s)' or sorting == 'max chan(s)':
         filtered.sort(key=lambda i: (chans_needed_of(i) is None, -(chans_needed_of(i) or 0)))
     elif sorting == 'min chan' or sorting == 'min chan(s)':
         filtered.sort(key=lambda i: (chans_needed_of(i) is None, chans_needed_of(i) or 0))
     elif sorting == 'min overlap' or sorting == 'min overlap()' or sorting == 'min overlap':
-        # sort by smallest frequency span (f_end - f_start), then by chans needed
+        # Ordenem pel tram de freqüència més petit (f_end - f_start) i després pels canals necessaris
         def key_fn(i):
             ow = overlap_width(i)
             chv = chans_needed_of(i) or 0
@@ -315,9 +315,9 @@ def filter_and_sort(complete_options_path="./assistanceJSONs/completeOptions.jso
         filtered.sort(key=lambda i: (chans_needed_of(i) is None, chans_needed_of(i) or 0, i.get('f_start', 0)))
 
     
-    # Store the filtered and sorted options back to a JSON file
+    # Guardem les opcions filtrades i ordenades en un fitxer JSON
     storeJSON(filtered, './assistanceJSONs/filteredOptions.json')
     
-    # Return True if everything went ok :)
+    # Retornem True si tot ha anat bé :)
     return True
 
